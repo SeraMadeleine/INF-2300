@@ -71,7 +71,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                         self.wfile.write(b'404 - Not Found \r\n')
                     else:
                         # Create and send the response headers
-                        create_response_headers(self, "favicon.ico", favicon_content)
+                        create_response_headers(self, "favicon.ico", cont=favicon_content)
 
                 if URI == "/" or URI == "/index.html": 
                     # Read the content of index.html as bytes
@@ -84,7 +84,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                         self.wfile.write(b'404 - Not Found \r\n')
                     else: 
                         # Calculate the content length 
-                        create_response_headers(self, "index.html", content)
+                        create_response_headers(self, "index.html", cont=content)
 
                 else:
                     self.wfile.write(b'404 - Not Found \r\n')
@@ -94,7 +94,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                     post_data = self.rfile.read().decode()
                     
                     process_file("/test.txt", "a", post_data)
-                    create_response_headers(self, "/test.txt", 0, 0)
+                    create_response_headers(self, "/test.txt", content_length=0)
 
                 else: 
                     self.wfile.write(b'403 - Forbidden')
@@ -103,37 +103,44 @@ def find_content_type(filename):
     # Find the file extension (the part of the filename that comes after the last dot (.)) of a given filename 
     ext = filename.split('.')[-1].lower()
 
+    # source: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
     if ext == 'ico':
         return "image/vnd.microsoft.icon"
     elif ext == 'html':
         return "text/html"
     elif ext == 'txt':
         return "text/plain" 
+    elif ext == 'jpeg' or ext == 'jpg':
+        return "image/jpeg"
 
 
-def create_response_headers(self, name, content, content_length=None):
+def create_response_headers(self, name, cont=None, content_length=None, staus_code = 200):
+    #TODO: lage error messages 
     """
     Generate the response header
 
+    :parameter name: the file name (e.g. test.txt)
     :parameter content and content_lenght: The content_lenght will be included in the response body. If None, the actual content length will calculated and used.
+    :parameter staus_code: set to 200 = ok as defult
     """
     if content_length is None:      # and content is not None -> kan evt legge til dette for å sikre edge cases? 
-        content_length = len(content)
+        content_length = len(cont)
 
     content_type = find_content_type(name)
     print(content_type)
 
+    status_line = b'HTTP/1.1 200 OK\r\n'
+
     response_headers = (
-        b'HTTP/1.1 200 OK\r\n' + 
+        status_line + 
         b'Content-Length: %d\r\n' % content_length +
-        f'Content-Type: {content_type}\r\n'.encode() +      # må bruke f for å få bruke endcode og få riktig content type 
-        b'\r\n'
-    )
+        f'Content-Type: {content_type}\r\n\r\n'.encode()       # må bruke f for å få bruke endcode og få riktig content type 
+        )
 
     self.wfile.write(response_headers)
-    # if content is not None:
-    self.wfile.write(content)
- 
+    if cont is not None:
+        self.wfile.write(cont)
+
 
 def process_file(filname, mode, data=None): 
     try: 
