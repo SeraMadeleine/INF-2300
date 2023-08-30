@@ -52,18 +52,14 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         If a resource does not exist, the get should return 404 - not found with an optional body. The same applies for a request to a forbidden resource,
         however, it should return 403 - forbidden.
         """
+        # Check if the request line contains at least two parts (HTTP method and URI)
         if len(requested_part) >= 2: 
-            HTTP_method = requested_part[0].upper()     # force it to be upper 
-            URI = requested_part[1]
+            HTTP_method = requested_part[0].upper()     # Force it to be upper for case insensitivity
+            URI = requested_part[1].lower()
 
             if HTTP_method == "GET":
                 if URI == "/" or URI == "/index.html": 
-                    # self.wfile.write(b"HTTP/1.1 200 OK \r\n")        # b"" is used to represent a byte string, \r\n = new line
-                    # self.wfile.write(b"Content-Length: HEI \r\n")         #self.wfile.write('Content-Length: %d\r\n'%len(content))    # len returns the number
-                    # self.wfile.write(b"Content-Type: text/html \r\n\r\n")
-                    # with open("index.html", "rb") as f:
-                    #     content = f.read()
-                    #     self.wfile.write(content)
+                    # Read the content of index.html as bytes
                     with open("index.html", "rb") as f:
                         content = f.read()
                     
@@ -76,10 +72,11 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                     b'Content-Type: text/html\r\n'
                     b'Content-Length: %d \r\n\r\n' %contentLength
                     )
-                    
+
+                    # Write the responsheader and the content of the page 
                     self.wfile.write(response_headers)
-                        
                     self.wfile.write(content)
+
                 else:
                     self.wfile.write(b'404 - Not Found \r\n')
 
