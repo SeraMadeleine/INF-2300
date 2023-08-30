@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import socketserver
+import mimetypes        # to determine the content type of a file 
+
 
 
 """
@@ -39,7 +41,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         make additional methods to organize the flow with which a request is handled by
         this method. But it all starts here!
         """
-        # self.wfile.write(b"HTTP/1.1 200 OK \r\n")  # commented out to get the webpage up 
+
+        self.wfile.write(b"HTTP/1.1 200 OK \r\n")  
 
         # Request, parse, and process the requested link 
         request = self.rfile.readline().decode('utf-8').strip() # By using utf-8 encoding in decode(), you ensure that the bytes are properly decoded 
@@ -58,35 +61,79 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             URI = requested_part[1].lower()
 
             if HTTP_method == "GET":
+                # Add the UiT icon by check if the requested URI is for the favicon.ico
+                if URI == "/favicon.ico":
+                    # Read the content of favicon.ico as bytes
+                    favicon_content = process_file("favicon.ico", "rb")
+                    
+                    if favicon_content == -1:
+                        self.wfile.write(b'404 - Not Found \r\n')
+                    else:
+                        # Create and send the response headers
+                        create_response_headers(self, favicon_content)
+
                 if URI == "/" or URI == "/index.html": 
                     # Read the content of index.html as bytes
-                    with open("index.html", "rb") as f:
-                        content = f.read()
-                    
-                    # Calculate the content length 
-                    contentLength = len(content)
+                    # with open("index.html", "rb") as f:
+                    #     content = f.read()
+                    content = process_file("index.html", "rb")
 
-                    # Create the responce header
-                    response_headers = (
-                    b'HTTP/1.1 200 OK\r\n'
-                    b'Content-Type: text/html\r\n'
-                    b'Content-Length: %d \r\n\r\n' %contentLength
-                    )
-
-                    # Write the responsheader and the content of the page 
-                    self.wfile.write(response_headers)
-                    self.wfile.write(content)
+                    if content == -1: 
+                        self.wfile.write(b'404 - Not Found \r\n')
+                    else: 
+                        # Calculate the content length 
+                        create_response_headers(self, content)
 
                 else:
                     self.wfile.write(b'404 - Not Found \r\n')
 
-            if URI == 'POST': 
+            if HTTP_method == 'POST': 
                 if URI == '/test.txt': 
-                    pass 
+                    post_data = self.rfile.read().decode()
+                    
+                    process_file("/test.txt", "a", post_data)
+                    create_response_headers(self, 0, 0)
+
                 else: 
                     self.wfile.write(b'403 - Forbidden')
 
-    
+def create_response_headers(self, content, content_length=None):
+    """
+    Generate the response header
+
+    :parameter content and content_lenght: The content_lenght will be included in the response body. If None, the actual content length will calculated and used.
+    """
+    if content_length is None:      # and content is not None -> kan evt legge til dette for å sikre edge cases? 
+        content_length = len(content)
+
+    content_type = mimetypes
+
+    response_headers = (
+        b'HTTP/1.1 200 OK\r\n'
+        b'Content-Type: text/html\r\n'
+        b'Content-Length: %d\r\n\r\n' % content_length
+    )
+
+    self.wfile.write(response_headers)
+    # if content is not None:
+    self.wfile.write(content)
+ 
+
+def process_file(filname, mode, data=None): 
+    try: 
+        # Open the given file with the given mode
+        with open(filname, mode) as f: 
+            if mode =="rb": 
+                c = f.read()
+                return c
+            elif mode=="r" :
+                if data is not None: 
+                    f.write(data)
+                else: 
+                    c= f.read()
+                    return c
+    except FileNotFoundError: 
+        return -1
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
