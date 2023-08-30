@@ -75,8 +75,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
                 if URI == "/" or URI == "/index.html": 
                     # Read the content of index.html as bytes
-                    # with open("index.html", "rb") as f:
-                    #     content = f.read()
                     content = process_file("index.html", "rb")
 
                     # If the content returns -1 an error has occurd 
