@@ -61,6 +61,7 @@ def test_content_length():
     """Content-Length header is present."""
     client.request("GET", "/")
     headers = [k.lower() for k in client.getresponse().headers.keys()]
+    print('\n headers\n', headers)
     client.close()
     return "content-length" in headers
 

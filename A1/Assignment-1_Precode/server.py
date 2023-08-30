@@ -42,13 +42,14 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         this method. But it all starts here!
         """
 
-        self.wfile.write(b"HTTP/1.1 200 OK \r\n")  
+        # self.wfile.write(b"HTTP/1.1 200 OK \r\n")  
 
         # Request, parse, and process the requested link 
         request = self.rfile.readline().decode('utf-8').strip() # By using utf-8 encoding in decode(), you ensure that the bytes are properly decoded 
         print("Request received!", request)
 
         requested_part = request.split()
+        
 
         """ 
         The function must return index.html in the response body if the method is GET.  This is true for the / and /index.html Uniform Resource Identifiers (URIs).
@@ -83,7 +84,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                     else: 
                         # Calculate the content length 
                         create_response_headers(self, "index.html", cont=content)
-
                 else:
                     self.wfile.write(b'404 - Not Found \r\n')
 
@@ -127,17 +127,15 @@ def create_response_headers(self, name, cont=None, content_length=None, staus_co
     content_type = find_content_type(name)
     print(content_type)
 
-    status_line = b'HTTP/1.1 200 OK\r\n'
+    # status_line = b'HTTP/1.1 200 OK\r\n'
 
     response_headers = (
-        status_line + 
-        b'Content-Length: %d\r\n' % content_length +
-        f'Content-Type: {content_type}\r\n\r\n'.encode()       # må bruke f for å få bruke endcode og få riktig content type 
+        b'HTTP/1.1 200 OK\r\n' +
+        b'Content-Length: %d\r\n'%content_length +
+        b'Content-Type: text/html\r\n\r\n' # .encode()       # må bruke f for å få bruke endcode og få riktig content type 
         )
 
-    self.wfile.write(response_headers)
-    if cont is not None:
-        self.wfile.write(cont)
+    self.wfile.write(response_headers+cont)
 
 
 def process_file(filname, mode, data=None): 
