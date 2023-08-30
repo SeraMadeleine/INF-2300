@@ -135,6 +135,17 @@ def process_file(filname, mode, data=None):
     except FileNotFoundError: 
         return -1
 
+def find_content_type(filename): 
+    # Find the file extension (the part of the filename that comes after the last dot (.)) of a given filename 
+    ext = filename.split('.')[-1].lower()
+
+    if ext == 'ico':
+        return "image/x-icon"
+    elif ext == 'html':
+        return "text/html"
+    elif ext == 'txt':
+        return "text/plain" 
+
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
     socketserver.TCPServer.allow_reuse_address = True
