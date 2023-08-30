@@ -66,11 +66,12 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                     # Read the content of favicon.ico as bytes
                     favicon_content = process_file("favicon.ico", "rb")
                     
+                    # If the content returns -1 an error has occurd 
                     if favicon_content == -1:
                         self.wfile.write(b'404 - Not Found \r\n')
                     else:
                         # Create and send the response headers
-                        create_response_headers(self, favicon_content)
+                        create_response_headers(self, "favicon.ico", favicon_content)
 
                 if URI == "/" or URI == "/index.html": 
                     # Read the content of index.html as bytes
@@ -78,11 +79,12 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                     #     content = f.read()
                     content = process_file("index.html", "rb")
 
+                    # If the content returns -1 an error has occurd 
                     if content == -1: 
                         self.wfile.write(b'404 - Not Found \r\n')
                     else: 
                         # Calculate the content length 
-                        create_response_headers(self, content)
+                        create_response_headers(self, "index.html", content)
 
                 else:
                     self.wfile.write(b'404 - Not Found \r\n')
@@ -92,12 +94,12 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                     post_data = self.rfile.read().decode()
                     
                     process_file("/test.txt", "a", post_data)
-                    create_response_headers(self, 0, 0)
+                    create_response_headers(self, "/test.txt", 0, 0)
 
                 else: 
                     self.wfile.write(b'403 - Forbidden')
 
-def create_response_headers(self, content, content_length=None):
+def create_response_headers(self, name, content, content_length=None):
     """
     Generate the response header
 
@@ -105,8 +107,6 @@ def create_response_headers(self, content, content_length=None):
     """
     if content_length is None:      # and content is not None -> kan evt legge til dette for å sikre edge cases? 
         content_length = len(content)
-
-    content_type = mimetypes
 
     response_headers = (
         b'HTTP/1.1 200 OK\r\n'
@@ -127,11 +127,11 @@ def process_file(filname, mode, data=None):
                 c = f.read()
                 return c
             elif mode=="r" :
-                if data is not None: 
-                    f.write(data)
-                else: 
+                if data is None: 
                     c= f.read()
                     return c
+                else: 
+                    f.write(data)
     except FileNotFoundError: 
         return -1
 
