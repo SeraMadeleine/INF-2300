@@ -99,6 +99,18 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 else: 
                     self.wfile.write(b'403 - Forbidden')
 
+def find_content_type(filename): 
+    # Find the file extension (the part of the filename that comes after the last dot (.)) of a given filename 
+    ext = filename.split('.')[-1].lower()
+
+    if ext == 'ico':
+        return "image/vnd.microsoft.icon"
+    elif ext == 'html':
+        return "text/html"
+    elif ext == 'txt':
+        return "text/plain" 
+
+
 def create_response_headers(self, name, content, content_length=None):
     """
     Generate the response header
@@ -108,10 +120,14 @@ def create_response_headers(self, name, content, content_length=None):
     if content_length is None:      # and content is not None -> kan evt legge til dette for å sikre edge cases? 
         content_length = len(content)
 
+    content_type = find_content_type(name)
+    print(content_type)
+
     response_headers = (
-        b'HTTP/1.1 200 OK\r\n'
-        b'Content-Type: text/html\r\n'
-        b'Content-Length: %d\r\n\r\n' % content_length
+        b'HTTP/1.1 200 OK\r\n' + 
+        b'Content-Length: %d\r\n' % content_length +
+        f'Content-Type: {content_type}\r\n'.encode() +      # må bruke f for å få bruke endcode og få riktig content type 
+        b'\r\n'
     )
 
     self.wfile.write(response_headers)
@@ -135,16 +151,6 @@ def process_file(filname, mode, data=None):
     except FileNotFoundError: 
         return -1
 
-def find_content_type(filename): 
-    # Find the file extension (the part of the filename that comes after the last dot (.)) of a given filename 
-    ext = filename.split('.')[-1].lower()
-
-    if ext == 'ico':
-        return "image/x-icon"
-    elif ext == 'html':
-        return "text/html"
-    elif ext == 'txt':
-        return "text/plain" 
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
