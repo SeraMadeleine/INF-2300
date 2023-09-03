@@ -46,113 +46,39 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         # Request, parse, and process the requested link 
         request = self.rfile.readline().decode('utf-8').strip() # By using utf-8 encoding in decode(), you ensure that the bytes are properly decoded 
-        print("Request received!", request)
-
         requested_part = request.split()
-        
 
-        """ 
-        The function must return index.html in the response body if the method is GET.  This is true for the / and /index.html Uniform Resource Identifiers (URIs).
-        If a resource does not exist, the get should return 404 - not found with an optional body. The same applies for a request to a forbidden resource,
-        however, it should return 403 - forbidden.
-        """
-        # Check if the request line contains at least two parts (HTTP method and URI)
-        if len(requested_part) >= 2: 
-            HTTP_method = requested_part[0].upper()     # Force it to be upper for case insensitivity
+
+        # Check if the request is valid and force the HTTP method to be upper letters, and URI to be lower letters 
+        if len(requested_part) >= 2:
+            HTTP_method = requested_part[0].upper()
             URI = requested_part[1].lower()
 
-            if HTTP_method == "GET":
-                # Add the UiT icon by check if the requested URI is for the favicon.ico
-                if URI == "/favicon.ico":
-                    # Read the content of favicon.ico as bytes
-                    favicon_content = process_file("favicon.ico", "rb")
-                    
-                    # If the content returns -1 an error has occurd 
-                    if favicon_content == -1:
-                        self.wfile.write(b'404 - Not Found \r\n')
-                    else:
-                        # Create and send the response headers
-                        create_response_headers(self, "favicon.ico", cont=favicon_content)
+        # Chek if the HTTP methode is Get, Post 
+        if HTTP_method == 'GET':
+            # get the index 
+            if URI == "/" or URI == "/index.html":
+                self.get_methode("index.html")
 
-                if URI == "/" or URI == "/index.html": 
-                    # Read the content of index.html as bytes
-                    content = process_file("index.html", "rb")
+            # get the icon 
+            elif URI == "/favicon.ico":
+                self.get_methode("favicon.ico")
 
-                    # If the content returns -1 an error has occurd 
-                    if content == -1: 
-                        self.wfile.write(b'404 - Not Found \r\n')
-                    else: 
-                        # Calculate the content length 
-                        create_response_headers(self, "index.html", cont=content)
-                else:
-                    self.wfile.write(b'404 - Not Found \r\n')
-
-            if HTTP_method == 'POST': 
-                if URI == '/test.txt': 
-                    post_data = self.rfile.read().decode()
-                    
-                    process_file("/test.txt", "a", post_data)
-                    create_response_headers(self, "/test.txt", content_length=0)
-
-                else: 
-                    self.wfile.write(b'403 - Forbidden')
-
-def find_content_type(filename): 
-    # Find the file extension (the part of the filename that comes after the last dot (.)) of a given filename 
-    ext = filename.split('.')[-1].lower()
-
-    # source: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
-    if ext == 'ico':
-        return "image/vnd.microsoft.icon"
-    elif ext == 'html':
-        return "text/html"
-    elif ext == 'txt':
-        return "text/plain" 
-    elif ext == 'jpeg' or ext == 'jpg':
-        return "image/jpeg"
-
-
-def create_response_headers(self, name, cont=None, content_length=None, staus_code = 200):
-    #TODO: lage error messages 
-    """
-    Generate the response header
-
-    :parameter name: the file name (e.g. test.txt)
-    :parameter content and content_lenght: The content_lenght will be included in the response body. If None, the actual content length will calculated and used.
-    :parameter staus_code: set to 200 = ok as defult
-    """
-    if content_length is None:      # and content is not None -> kan evt legge til dette for å sikre edge cases? 
-        content_length = len(cont)
-
-    content_type = find_content_type(name)
-    print(content_type)
-
-    # status_line = b'HTTP/1.1 200 OK\r\n'
-
-    response_headers = (
-        b'HTTP/1.1 200 OK\r\n' +
-        b'Content-Length: %d\r\n'%content_length +
-        b'Content-Type: text/html\r\n\r\n' # .encode()       # må bruke f for å få bruke endcode og få riktig content type 
+        elif HTTP_method == 'POST':
+            # Post method 
+            pass 
+    
+    def get_methode(self, filename):
+        with open(filename, 'rb') as f:
+            content = f.read()
+        response_header = (
+            b'HTTP/1.1 200 OK\r\n'
+            b'Content-Length: 3006\r\n' 
+            b'Content-Type: text/html\r\n\r\n'
         )
+        self.wfile.write(response_header + content)
 
-    self.wfile.write(response_headers+cont)
 
-
-def process_file(filname, mode, data=None): 
-    try: 
-        # Open the given file with the given mode
-        with open(filname, mode) as f: 
-            if mode =="rb": 
-                c = f.read()
-                return c
-            elif mode=="r" :
-                if data is None: 
-                    c= f.read()
-                    return c
-                else: 
-                    f.write(data)
-    except FileNotFoundError: 
-        return -1
 
 
 if __name__ == "__main__":
