@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import socketserver
 import os
+import json 
 
 
 """
@@ -63,31 +64,54 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         # Chek if the HTTP methode is Get, Post 
         if HTTP_method == 'GET':
+            # check that the file type is legal
+            if URI.endswith('.py'):
+                self.wfile.write(error_handling(403).encode())
+
             # get the index 
-            if URI == "/" or URI == "/index.html":
+            elif URI == "/" or URI == "/index.html":
                 self.get_request("index.html")
 
             # get the icon 
             elif URI == "/favicon.ico":
                 self.get_request("favicon.ico")
+
+            elif URI.startswith('/messages'):
+                # Handle GET request for messages
+                pass
             
             else:
                 self.wfile.write(error_handling(404).encode())
+                
 
         elif HTTP_method == 'POST':
             if URI == "/test.html":
                 self.post_request('test.html')
+            
+            elif URI == '/messages':
+                # Handle POST request to create a new message
+                pass 
             else:
-                self.wfile.write(error_handling(404).encode())
+                self.wfile.write(error_handling(403).encode())
 
         if HTTP_method == 'PUT':
-            pass
+            if URI.startswith('/messages'):
+                # Handle PUT request to update a message
+                pass 
+            else:
+                # Handle other PUT requests (404)
+                pass
 
         elif HTTP_method == 'DELETE':
-            pass
+            if URI.startswith('/messages'):
+                # Handle DELETE request to remove a message@
+                pass
+            else:
+                # Handle other DELETE requests (404)
+                pass
 
         else:
-            self.wfile.write(error_handling(404))
+            self.wfile.write(error_handling(404).encode())
     
     def get_request(self, filename):
         # Open the file and store its content for writing later 
@@ -95,7 +119,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             content = f.read()
         
         # Find the content type 
-        content_type = self.find_content_type(filename)
+        content_type = find_content_type(filename)
 
         # Create the response header 
         response_header = (
@@ -108,6 +132,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         self.wfile.write(response_header + content)
 
     def post_request(self, filename):
+        # bruke json 
         # Open the file and store its content for writing later 
         data = self.rfile.read().decode()
 
@@ -116,7 +141,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             f.write(data)
 
         # Find the content type 
-        content_type = self.find_content_type(filename)
+        content_type = find_content_type(filename)
 
         # Create the response header 
         response_header = (
@@ -129,28 +154,46 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         self.wfile.write(response_header)
 
     def put_request(self):
+        # oppdaterer noe du har fra før 
         pass 
 
     def delete_request(self):
+        # slette det 
         pass
 
-    # All definitions are found here: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
-    def find_content_type(self, filename):
-        extension = os.path.splitext(filename)[1]
-        return content_type.get(extension)
+    def get_message(self): 
+        # Retrieve and return a list of messages
+        pass 
 
-# def generate_error_html_body(error_code, title):
-#     error_body = """
-#         <html>
-#             <body>
-#                 <h1>"""
-#     error_body += str(error_code) + " "
-#     error_body += title
-#     error_body += """</h1>
-#             </body>
-#         </html>
-#     """
-#     return error_body
+    def create_message(self):
+        pass
+
+    def update_message(self, message_id, message_data):
+        # Update an existing message and return it
+        pass
+
+    def delete_message(self, message_id):
+        # Delete a message by ID
+        pass
+
+
+
+
+# All definitions are found here: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
+def find_content_type(filename):
+    extension = os.path.splitext(filename)[1]
+    return content_type.get(extension)
+
+# Emilie helpt me with the htlm code 
+def generate_error_html_body(error_code, message):
+    error_body = f"""
+        <html>
+        <body>
+            <h1>{error_code} {message}</h1>
+        </body>
+        </html>
+        """
+    return error_body
 
 def error_handling(error_code):
     if error_code == 404:
@@ -162,30 +205,15 @@ def error_handling(error_code):
     else:
         message = "Internal Server Error"
         content = "HTTP/1.1 500 Internal Server Error \r\n"
-    
-    content += "Content-Type: text/html; charset=UTF-8\r\n"
-    # Create the error body
-    error_body = """
-        <html>
-        <body>
-            <h1>"""
-    error_body += str(error_code) + " "
-    error_body += message
-    error_body += """</h1>
-        </body>
-        </html>
-        """
 
-    content += "Content-Length: " + str(len(error_body)) +"\r\n\r\n"
-    content += error_body
-    # Create the response headers for the error
-    # response_headers = (
-    #     f'HTTP/1.1 {error_code} {message}\r\n' + 
-    #     f'Content-Length: %d\r\n'%len(error_body) + 
-    #     b'Content-Type: text/html\r\n\r\n' + 
-    #     error_body.encode()
-    # )
-    # self.wfile.write(response_headers + error_body)
+    # Create the error body
+    error_body = generate_error_html_body(error_code, message)
+
+    content += (
+        "Content-Type: text/html \r\n" +
+        "Content-Length: " + str(len(error_body)) +"\r\n\r\n"       # dont work if i do it like the others 
+        + error_body)
+
     return content
 
 
