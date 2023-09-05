@@ -18,6 +18,7 @@ content_type = {
     ".png": "image/png",
     ".jpg": "image/jpeg",
     ".ico": "image/icon",
+    ".txt": "text/plain",
 }
 
 class MyTCPHandler(socketserver.StreamRequestHandler):
@@ -85,12 +86,12 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 
 
         elif HTTP_method == 'POST':
-            if URI == "/test.html":
-                self.post_request('test.html')
+            if URI == "/test.txt":
+                self.post_request('test.txt')
             
-            elif URI == '/messages':
-                # Handle POST request to create a new message
-                pass 
+            # elif URI == '/messages':
+            #     # Handle POST request to create a new message
+            #     pass 
             else:
                 self.wfile.write(error_handling(403).encode())
 
@@ -132,26 +133,39 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         self.wfile.write(response_header + content)
 
     def post_request(self, filename):
+        # TODO: må finne en måte å ikke hardcode content lengden for at det skal virke. det jeg gjør i post virker ikke 
         # bruke json 
         # Open the file and store its content for writing later 
-        data = self.rfile.read().decode()
 
-        # a - because it should append (or ab ?)
-        with open(filename, 'a') as f:
-            f.write(data)
+        content_length = 0
+        for line in self.rfile:
+            line = line.decode().strip()
+            if line.startswith("Content-Length"):
+                content_length = int(line.split(":")[1])
+                break
+        print(content_length)
+        
 
         # Find the content type 
         content_type = find_content_type(filename)
 
+        data = self.rfile.read(content_length).decode()
+    
+
         # Create the response header 
         response_header = (
             b'HTTP/1.1 200 OK\r\n'+
-            b'Content-Length: 0\r\n' +
+            f'Content-Length: {content_length} \r\n'.encode() +
             f'Content-Type: {content_type}\r\n\r\n'.encode()
         )
 
         # Write the response header and the content of the file 
         self.wfile.write(response_header)
+
+
+        # a - because it should append (or ab ?)
+        with open(filename, 'a') as f:
+            f.write(data)
 
     def put_request(self):
         # oppdaterer noe du har fra før 

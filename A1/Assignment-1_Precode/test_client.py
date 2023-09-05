@@ -185,7 +185,7 @@ def test_post_to_test_file_should_return_correct_content_length():
 
 test_functions = [
     server_returns_valid_response_code,
-    # test_index,
+    test_index,
     test_content_length,
     test_valid_content_length,
     test_content_type,
