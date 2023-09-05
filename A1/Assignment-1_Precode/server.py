@@ -177,8 +177,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         pass
 
 
-
-
 # All definitions are found here: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
 def find_content_type(filename):
     extension = os.path.splitext(filename)[1]
@@ -213,7 +211,7 @@ def error_handling(error_code):
         "Content-Type: text/html \r\n" +
         "Content-Length: " + str(len(error_body)) +"\r\n\r\n"       # dont work if i do it like the others 
         + error_body)
-
+        
     return content
 
 
