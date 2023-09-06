@@ -2,6 +2,7 @@
 import socketserver
 import os
 import json 
+import urllib.parse
 
 
 """
@@ -81,6 +82,27 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             elif URI.startswith('/messages'):
                 # Handle GET request for messages
                 pass
+
+            elif URI == "/test.txt":
+
+                if os.path.exists("test.txt"):
+                    # __file__.replace(fila du er på (server.py), det dub vil replace med (test))
+                    with open("test.txt", "r") as f:     ## eller rb?
+                        content = f.readlines()
+
+                        self.wfile.write(b"HTTP/1.1 200 OK\r\n")
+                        self.wfile.write(b"Content-type: text/plain\r\n")
+                        self.wfile.write(b"\r\n")
+
+                        for line in content: 
+                            self.wfile.write(line.encode())     # encode() = bytes 
+                            
+                else:
+                    # create a response 404
+                    self.wfile.write(error_handling(404).encode())
+
+                
+                
             
             else:
                 print("here2")
@@ -89,23 +111,41 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         elif HTTP_method == 'POST':
             if URI == "/test.txt":
+                # TODO: ikke overskrife 
 
                 line = self.rfile.readline().decode().strip()
                 while line:
                     header, value = line.split(":", 1)
                     if header == "Content-Length":
                         length = value
+                    # reader lengden 
                     line = self.rfile.readline().decode().strip()
                 line = self.rfile.read(int(length)).decode().strip()
 
-                body = line[5:]     # % = lengden av text =
+                body = urllib.parse.unquote(line)[5:]     # % = lengden av text =, urlib for å få æ, ø, å 
 
-                # post_message = body[5:].encode()s
-                self.wfile.write(b"HTTP/1.1 200 OK\r\n")
-                self.wfile.write(f"Content-length: {length}\r\n".encode())
-                self.wfile.write(b"Content-type: text/plain\r\n")
-                self.wfile.write(b"\r\n")
-                self.wfile.write(body.encode())
+                # appende 
+                with open("test.txt", 'ab') as f:
+                    f.write(body.encode())
+                    f.write(b"\n")
+
+                # henter ut alt som ligger der 
+                with open("test.txt", "rb") as f:     ## eller rb?
+                    content = f.readlines()
+                    # post_message = body[5:].encode()s
+                    self.wfile.write(b"HTTP/1.1 200 OK\r\n")
+                    # self.wfile.write(f"Content-length: {length}\r\n".encode())
+                    self.wfile.write(b"Content-type: text/plain\r\n")
+                    self.wfile.write(b"\r\n")
+
+                    for line in content: 
+                        self.wfile.write(line)     # encode() = bytes 
+
+                # TODO: lese alt i text file, print det pluss det nye
+                # TODO: 201 hvis den lages fordi den ikke eksisterer, 200 ellers 
+
+                # self.wfile.write((old_text + "\n").encode('utf8'))
+                
 
             
             # elif URI == '/messages':
