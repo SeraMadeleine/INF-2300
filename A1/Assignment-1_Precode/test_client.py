@@ -42,7 +42,7 @@ def server_returns_valid_response_code():
     client.request("GET", "/")
     try:
         response = client.getresponse()
-        client.close()
+        client.close()                      # pach in precode 
         return response.status in [status.value for status in HTTPStatus]
     except BadStatusLine:
         client.close()

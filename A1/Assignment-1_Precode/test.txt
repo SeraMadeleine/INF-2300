@@ -82,4 +82,6 @@ Accept-Encoding: gzip, deflate, br
 Accept-Language: nb-NO,nb;q=0.9,no;q=0.8,nn;q=0.7,en-US;q=0.6,en;q=0.5
 Cookie: amp_6e403e=U5dx8x0TkHeFXdIF6Tuvgi...1h9i09i4s.1h9i31rcc.0.0.0
 
-text=heiCache-CCache-ConCache-ConCache-ConCache-ConCache-CoCache-ConCache-CoCache-Control: maxCache-ControlCache-CoCache-ControCache-CoCache-Co
+text=heiCache-CCache-ConCache-ConCache-ConCache-ConCache-CoCache-ConCache-CoCache-Control: maxCache-ControlCache-CoCache-ControCache-CoCache-CoCache-ConCache-CoCache-ConCache-ConCacheCache-CoCache-CoCache-Control: max-age=0Cache-Control: max-age=Cache-ConCache-ConCache-ConCache-ConCache-ConCache-CoCache-ConCache-CoCache-Control: max-age=0
+sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="11Cache-Control: max-age=0
+sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="11Cache-CoCache-Control: max-age=0Cache-Control: max-age=0Cache-Control: max-age=0text=heitext=posttext=posttext=posttext=posttext=heitext=heitext=hei

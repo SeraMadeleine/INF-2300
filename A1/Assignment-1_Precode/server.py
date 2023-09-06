@@ -57,6 +57,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         request_line = self.rfile.readline().decode('utf-8').strip() # By using utf-8 encoding in decode(), you ensure that the bytes are properly decoded 
         requested_part = request_line.split()
 
+        print(requested_part)
 
         # Check if the request is valid and force the HTTP method to be upper letters, and URI to be lower letters 
         if len(requested_part) >= 2:
@@ -64,7 +65,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             URI = requested_part[1].lower()
 
         # Chek if the HTTP methode is Get, Post 
-        if HTTP_method == 'GET':
+        if HTTP_method == "GET":
             # check that the file type is legal
             if URI.endswith('.py'):
                 self.wfile.write(error_handling(403).encode())
@@ -82,12 +83,30 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 pass
             
             else:
+                print("here2")
                 self.wfile.write(error_handling(404).encode())
                 
 
         elif HTTP_method == 'POST':
             if URI == "/test.txt":
-                self.post_request('test.txt')
+
+                line = self.rfile.readline().decode().strip()
+                while line:
+                    header, value = line.split(":", 1)
+                    if header == "Content-Length":
+                        length = value
+                    line = self.rfile.readline().decode().strip()
+                line = self.rfile.read(int(length)).decode().strip()
+
+                body = line[5:]     # % = lengden av text =
+
+                # post_message = body[5:].encode()s
+                self.wfile.write(b"HTTP/1.1 200 OK\r\n")
+                self.wfile.write(f"Content-length: {length}\r\n".encode())
+                self.wfile.write(b"Content-type: text/plain\r\n")
+                self.wfile.write(b"\r\n")
+                self.wfile.write(body.encode())
+
             
             # elif URI == '/messages':
             #     # Handle POST request to create a new message
@@ -95,7 +114,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             else:
                 self.wfile.write(error_handling(403).encode())
 
-        if HTTP_method == 'PUT':
+        elif HTTP_method == 'PUT':
             if URI.startswith('/messages'):
                 # Handle PUT request to update a message
                 pass 
@@ -129,43 +148,66 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             f'Content-Type: {content_type}\r\n\r\n'.encode()
         )
 
-        # Write the response header and the content of the file 
+        # Write the response header and the content of the file
         self.wfile.write(response_header + content)
 
     def post_request(self, filename):
+        pass
         # TODO: må finne en måte å ikke hardcode content lengden for at det skal virke. det jeg gjør i post virker ikke 
         # bruke json 
         # Open the file and store its content for writing later 
 
-        content_length = 0
-        for line in self.rfile:
-            line = line.decode().strip()
-            if line.startswith("Content-Length"):
-                content_length = int(line.split(":")[1])
-                break
-        print(content_length)
+        # req = self.rfile.readline()
+        # body = ""
+
+        # for index, line in enumerate(req):
+        #     print(line)
+        #     if len(line) == 2:
+        #         body = req[index + 1].decode().strip()
+        #         break
+
+        # post_message = body[5:].encode()
+        # content_type = find_content_type(filename)
+        
+        # self.wfile.write(b"HTTP/1.1 200")
+
+        # self.wfile.write(f'Content-Length: {len(post_message)} \r\n'.encode())
+        # self.wfile.write(b"Content-type: text/plain\r\n")
+        # self.wfile.write(b"\r\n")
+        # self.wfile.write(post_message)
+
+        # content_length = 0
+        # for line in self.rfile:
+        #     line = line.decode('utf-8').strip()
+        #     if line.startswith("Content-Length"):
+        #         print(content_length)
+        #         content_length = int(line.split(":")[1])
+        #         break
+        # print(content_length)
         
 
-        # Find the content type 
-        content_type = find_content_type(filename)
+        # # Find the content type and length 
+        # content_type = find_content_type(filename)
+        # # content_length = self.get_header_length()
 
-        data = self.rfile.read(content_length).decode()
+        # data = self.rfile.read(content_length).decode()
+        # print(data)
     
 
-        # Create the response header 
-        response_header = (
-            b'HTTP/1.1 200 OK\r\n'+
-            f'Content-Length: {content_length} \r\n'.encode() +
-            f'Content-Type: {content_type}\r\n\r\n'.encode()
-        )
+        # # Create the response header 
+        # response_header = (
+        #     b'HTTP/1.1 200 OK\r\n'+
+        #     f'Content-Length: {content_length} \r\n'.encode() +
+        #     f'Content-Type: {content_type}\r\n\r\n'.encode()
+        # )
 
-        # Write the response header and the content of the file 
-        self.wfile.write(response_header)
+        # # Write the response header and the content of the file 
+        # self.wfile.write(response_header)
+        # # self.wfile.write(b"HTTP/1.1 200 OK\r\n")
 
+        # self.wfile.write(b"nxuaios ")
 
-        # a - because it should append (or ab ?)
-        with open(filename, 'a') as f:
-            f.write(data)
+        # # a - because it should append (or ab ?)
 
     def put_request(self):
         # oppdaterer noe du har fra før 
@@ -175,8 +217,20 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         # slette det 
         pass
 
-    def get_message(self): 
+    def get_message(self, filename): 
         # Retrieve and return a list of messages
+        content_length = self.get_header_length()
+        content_type = find_content_type(filename)
+
+        response_header = (
+            b'HTTP/1.1 200 OK\r\n'+
+            f'Content-Length: {content_length} \r\n'.encode() +
+            f'Content-Type: {content_type}\r\n\r\n'.encode()
+        )
+
+        response = '{"message": []}'
+        self.wfile.write(response_header + response.encode())
+
         pass 
 
     def create_message(self):
@@ -189,6 +243,29 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
     def delete_message(self, message_id):
         # Delete a message by ID
         pass
+
+    def parse_headers(self):
+        headers = {}
+        while True:
+            header_line = self.rfile.readline().decode('utf-8').strip()
+            if not header_line:
+                # Empty line, signaling the end of headers
+                break
+            if ':' not in header_line:
+                # Invalid header field line, skip it
+                continue
+            key, value = header_line.split(":", 1)
+            key = key.strip()
+            value = value.strip()
+            headers[key.lower()] = value
+        return headers
+
+    
+    def get_header_length(self):
+        header = self.parse_headers()
+        length = int(header['Content-Length'])
+        return length
+        
 
 
 # All definitions are found here: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
