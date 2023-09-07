@@ -20,6 +20,7 @@ content_type = {
     ".jpg": "image/jpeg",
     ".ico": "image/icon",
     ".txt": "text/plain",
+    ".json": "application/json"
 }
 
 class MyTCPHandler(socketserver.StreamRequestHandler):
@@ -67,32 +68,37 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         # Chek if the HTTP methode is Get, Post 
         if HTTP_method == "GET":
-            # check that the file type is legal
-            if URI.endswith('.py'):
+            # check that the file type is legal, .py and .md should not be leagle
+            if URI.endswith('.py') or URI.endswith("md"):
                 self.wfile.write(error_handling(403).encode())
 
-            # get the index 
-            elif URI == "/" or URI == "/index.html":
-                self.get_request("index.html")
+            # get the index or the idex
+            elif URI == "/" or URI == "/index.html" or URI == "/favicon.ico":
+                # If the URI is "/" set it to be  "/index.html"
+                if  URI == "/":
+                    URI = "/index.html"
+                # Remove the /
+                filename = URI[1:]
+                self.get_request(filename)
 
-            # get the icon 
-            elif URI == "/favicon.ico":
-                self.get_request("favicon.ico")
 
             elif URI.startswith('/messages'):
                 # Handle GET request for messages
                 pass
 
             elif URI == "/test.txt":
-
                 if os.path.exists("test.txt"):
                     # __file__.replace(fila du er på (server.py), det dub vil replace med (test))
-                    with open("test.txt", "r") as f:     ## eller rb?
+                    with open("test.txt", "r") as f:     
                         content = f.readlines()
 
-                        self.wfile.write(b"HTTP/1.1 200 OK\r\n")
-                        self.wfile.write(b"Content-type: text/plain\r\n")
-                        self.wfile.write(b"\r\n")
+                        # TODO: regne ut lengden og fremdeles få den til å skrive ut alt 
+                        content_type = find_content_type("test.txt")
+                        response_header = (
+                            b'HTTP/1.1 200 OK\r\n'+
+                            f'Content-Type: {content_type}\r\n\r\n'.encode() 
+                        )
+                        self.wfile.write(response_header)
 
                         for line in content: 
                             self.wfile.write(line.encode())     # encode() = bytes 
@@ -100,8 +106,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 else:
                     # create a response 404
                     self.wfile.write(error_handling(404).encode())
-
-                
                 
             
             else:
@@ -111,9 +115,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         elif HTTP_method == 'POST':
             if URI == "/test.txt":
-                # TODO: ikke overskrife 
-
                 line = self.rfile.readline().decode().strip()
+
                 while line:
                     header, value = line.split(":", 1)
                     if header == "Content-Length":
@@ -122,30 +125,30 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                     line = self.rfile.readline().decode().strip()
                 line = self.rfile.read(int(length)).decode().strip()
 
-                body = urllib.parse.unquote(line)[5:]     # % = lengden av text =, urlib for å få æ, ø, å 
+                # Unquote the body to allow special characters such as æ, ø, and å, to appear in the test.txt file. 
+                body = urllib.parse.unquote(line)[5:]     # Start at 5 because that is the lenght of text= 
 
                 # appende 
                 with open("test.txt", 'ab') as f:
-                    f.write(body.encode())
-                    f.write(b"\n")
+                    f.write(body.encode() + b"\n")         # Just to obtain a new line so it appears nicer
 
                 # henter ut alt som ligger der 
-                with open("test.txt", "rb") as f:     ## eller rb?
+                with open("test.txt", "rb") as f:    
                     content = f.readlines()
-                    # post_message = body[5:].encode()s
-                    self.wfile.write(b"HTTP/1.1 200 OK\r\n")
-                    # self.wfile.write(f"Content-length: {length}\r\n".encode())
-                    self.wfile.write(b"Content-type: text/plain\r\n")
-                    self.wfile.write(b"\r\n")
+
+                    # Find the content type and create the response header 
+                    # TODO: get the len 
+                    content_type = find_content_type("test.txt")   
+                    response_header = (
+                        b'HTTP/1.1 200 OK\r\n'+
+                        f'Content-Type: {content_type}\r\n\r\n'.encode() 
+                    )
+                    self.wfile.write(response_header)
 
                     for line in content: 
                         self.wfile.write(line)     # encode() = bytes 
 
-                # TODO: lese alt i text file, print det pluss det nye
                 # TODO: 201 hvis den lages fordi den ikke eksisterer, 200 ellers 
-
-                # self.wfile.write((old_text + "\n").encode('utf8'))
-                
 
             
             # elif URI == '/messages':
@@ -178,76 +181,46 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         with open(filename, 'rb') as f:
             content = f.read()
         
-        # Find the content type 
+        # Find the content type and length 
         content_type = find_content_type(filename)
+        content_lenght = len(content)
 
         # Create the response header 
-        response_header = (
-            b'HTTP/1.1 200 OK\r\n'+
-            b'Content-Length: %d\r\n'%len(content) + 
-            f'Content-Type: {content_type}\r\n\r\n'.encode()
-        )
+        response_header = self.create_responseheader(content_type, content_lenght)
 
         # Write the response header and the content of the file
         self.wfile.write(response_header + content)
 
+    def create_responseheader(self, content_type, content_lenght):
+        # Create the response header 
+        response_header = (
+            b'HTTP/1.1 200 OK\r\n'+
+            f'Content-Length: {content_lenght}\r\n'.encode()+ 
+            f'Content-Type: {content_type}\r\n\r\n'.encode()
+        )
+
+        return response_header
+
     def post_request(self, filename):
+        # sjekk om fila eksisterer 
+        # hvis fila ikke eksisterer, returner kode 201, hvis den eksisterer returner 200
+        response = 1 # get the message 
+
+        with open(filename, "ab") as f: 
+            f.write(response.encode() + b"\r\n")
+
+            # Write the response code 
+            # create header and write that and the response 
+
         pass
-        # TODO: må finne en måte å ikke hardcode content lengden for at det skal virke. det jeg gjør i post virker ikke 
-        # bruke json 
-        # Open the file and store its content for writing later 
 
-        # req = self.rfile.readline()
-        # body = ""
+    def post_json(self, filename): 
+        # sjekk om fila eksisterer 
+        # hvis fila ikke eksisterer, returner kode 201, hvis den eksisterer returner 200
 
-        # for index, line in enumerate(req):
-        #     print(line)
-        #     if len(line) == 2:
-        #         body = req[index + 1].decode().strip()
-        #         break
-
-        # post_message = body[5:].encode()
-        # content_type = find_content_type(filename)
-        
-        # self.wfile.write(b"HTTP/1.1 200")
-
-        # self.wfile.write(f'Content-Length: {len(post_message)} \r\n'.encode())
-        # self.wfile.write(b"Content-type: text/plain\r\n")
-        # self.wfile.write(b"\r\n")
-        # self.wfile.write(post_message)
-
-        # content_length = 0
-        # for line in self.rfile:
-        #     line = line.decode('utf-8').strip()
-        #     if line.startswith("Content-Length"):
-        #         print(content_length)
-        #         content_length = int(line.split(":")[1])
-        #         break
-        # print(content_length)
-        
-
-        # # Find the content type and length 
-        # content_type = find_content_type(filename)
-        # # content_length = self.get_header_length()
-
-        # data = self.rfile.read(content_length).decode()
-        # print(data)
-    
-
-        # # Create the response header 
-        # response_header = (
-        #     b'HTTP/1.1 200 OK\r\n'+
-        #     f'Content-Length: {content_length} \r\n'.encode() +
-        #     f'Content-Type: {content_type}\r\n\r\n'.encode()
-        # )
-
-        # # Write the response header and the content of the file 
-        # self.wfile.write(response_header)
-        # # self.wfile.write(b"HTTP/1.1 200 OK\r\n")
-
-        # self.wfile.write(b"nxuaios ")
-
-        # # a - because it should append (or ab ?)
+        # finn lenden på body 
+        # generer en ny id 
+        pass 
 
     def put_request(self):
         # oppdaterer noe du har fra før 
@@ -306,6 +279,21 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         length = int(header['Content-Length'])
         return length
         
+    def get_jason(self, filename):
+        # Retrieve and return a list of messages
+        # content_length = self.get_header_length()
+        content_type = find_content_type(filename)
+
+        response_header = (
+            b'HTTP/1.1 200 OK\r\n'+
+            # f'Content-Length: {content_length} \r\n'.encode() +
+            f'Content-Type: {content_type}\r\n\r\n'.encode()
+        )
+
+        with open("messages.json", "r") as f:
+            self.list = json.load(f)            # read the file and create a list 
+            self.data = json.dumps(self.list, indent=4)
+        pass
 
 
 # All definitions are found here: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
