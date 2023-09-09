@@ -13,12 +13,13 @@ UiT - The Arctic University of Norway
 May 9th, 2019
 """
 
-
+# Messages are stored in a list. The messages are represented as dictionaries, containing keys such as "ID" and "Text"
 messages = []
 
+# Dictionary that maps the file to the corresponding type
 content_type = {
-    ".html": "text/html",
-    ".css": "text/css",
+    ".html": "text/html",           
+    ".css": "text/css",             
     ".png": "image/png",
     ".jpg": "image/jpeg",
     ".ico": "image/icon",
@@ -59,24 +60,21 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         """
 
         # Request, parse, and process the requested link 
-        request_line = self.rfile.readline().decode('utf-8').strip() # By using utf-8 encoding in decode(), you ensure that the bytes are properly decoded 
-        requested_part = request_line.split()
+        request_line = self.rfile.readline().decode('utf-8').strip()    # Using utf-8 encoding in decode() ensures that bytes are correctly decoded. 
+        requested_part = request_line.split()                           
 
-        print(requested_part)
-
-        # Check if the request is valid and force the HTTP method to be upper letters, and URI to be lower letters 
+        # Determine whether the request is legitimate and force the HTTP method to be uppercase and the URI to be lowercase. 
         if len(requested_part) >= 2:
             HTTP_method = requested_part[0].upper()
             URI = requested_part[1].lower()
 
-        # Chek if the HTTP methode is Get, Post 
+        # Determine if the HTTP method is GET, POST, PUT, or DELETE and handle it accordingly.
         if HTTP_method == "GET":
-            print(URI)
-            # check that the file type is legal, .py and .md should not be leagle
+            # Verify that the file type is legal;.py and.md should not be allowed.
             if URI.endswith('.py') or URI.endswith("md"):
                 self.wfile.write(error_handling(403).encode())
 
-            # get the index or the idex
+            # Respond to requests for specified resources.
             elif URI == "/" or URI == "/index.html" or URI == "/favicon.ico":
                 # If the URI is "/" set it to be "/index.html"
                 if  URI == "/":
@@ -91,52 +89,64 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 self.get_test(filename, 'r')
 
             elif URI.startswith('/message'):
-                print("got message")
                 # Handle GET request for messages
                 filename = URI[1:]
                 self.get_json(filename)
             
             else:
-                print("ups error")
+                # Return a 404 Not Found error
                 self.wfile.write(error_handling(404).encode())
                 
 
         elif HTTP_method == 'POST':
+            # Handle POST request for creating a new text test.txt or message.json
             if URI == "/test.txt":
                 filename = URI[1:]
                 self.post_request(filename)
 
             
             elif URI.startswith('/message'):
-                # Handle POST request to create a new message
                 filename = 'message.json'
                 self.post_json(filename) 
 
             else:
+                # Return a 403 Forbidden error for other POST requests
                 self.wfile.write(error_handling(403).encode())
 
         elif HTTP_method == 'PUT':
             if URI.startswith('/message'):
-                filename = 'message.json'
                 # Handle PUT request to update a message
+                filename = 'message.json'
                 self.put_request()
             else:
-                # Handle other PUT requests (404)
-                pass
+                # Return a 404 Not Found error
+                self.wfile.write(error_handling(404).encode())
 
         elif HTTP_method == 'DELETE':
             if URI.startswith('/message'):
+                #  Handle DELETE request for deleting a message
                 filename = 'message.json'
 
                 self.delete_request(filename)
             else:
-                # Handle other DELETE requests (404)
-                pass
+                # Return a 404 Not Found error
+                self.wfile.write(error_handling(404).encode())
 
         else:
+            # Return a 404 Not Found error for unsupported HTTP methods
             self.wfile.write(error_handling(404).encode())
     
     def get_request(self, filename, mode):
+        """
+        Handle a GET request for a specific file.
+
+    Args:
+        filename (str): The name of the file to retrieve.
+        mode (str): The mode in which to open the file ('rb' for binary, 'r' for text).
+
+    Returns:
+        None
+        """
         # Open the file and store its content for writing later 
         with open(filename, mode) as f: 
             content = f.read()
@@ -152,26 +162,51 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         self.wfile.write(response_header + content)
 
     def get_test(self, filename, mode):
+        """
+        Handle a GET request for a specific test file.
+
+        Args:
+            filename (str): The name of the file to retrieve.
+            mode (str): The mode in which to open the file ('r' for text, 'rb' for binary).
+
+        Returns:
+            None
+        """
         if os.path.exists(filename):
             # __file__.replace(fila du er på (server.py), det dub vil replace med (test))
+            # If the file provided exists on the server
             with open(filename, mode) as f:     
                 content = f.read()
 
                 # TODO: regne ut lengden og fremdeles få den til å skrive ut alt 
+                
+                # Determine the content type of the file and construct an HTTP response header
                 content_type = find_content_type(filename)
                 response_header = (
                     b'HTTP/1.1 200 OK\r\n'+
                     f'Content-Type: {content_type}\r\n\r\n'.encode() 
                 )
+
+                # Send the response header to the client
                 self.wfile.write(response_header)
 
+                # Send the file content to the client line by line
                 for line in content: 
                     self.wfile.write(line.encode())     # encode() = bytes 
         else:
-                    # create a response 404
-                    self.wfile.write(error_handling(404).encode())                
+            # Send a 404 Not Found response if the provided file does not exist.
+            self.wfile.write(error_handling(404).encode())                
 
     def get_json(self, filename):
+        """
+        Handle a GET request for JSON data.
+
+        Args:
+            filename (str): The name of the JSON file to retrieve.
+
+        Returns:
+            None
+        """
         # Convert the 'message' list to a JSON-formatted string
         json_data = json.dumps(messages)
 
@@ -181,15 +216,23 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         # Determine the content type based on the filename
         content_type = find_content_type(filename)
 
-        # Create the response header
+        # Make a response header and send the response header and JSON data to the client.
         response_header = self.create_responseheader('200 OK', "application/json", content_length)
-
-        # Write the response header and the JSON content to the client
         self.wfile.write(response_header + json_data.encode())
 
 
     def create_responseheader(self, response, content_type, content_lenght):
-        # Create the response header 
+        """
+        Create an HTTP response header.
+
+        Args:
+            response (str): The HTTP response status (e.g., '200 OK', '404 Not Found').
+            content_type (str): The content type of the response (e.g., 'application/json').
+            content_length (int): The length of the response content.
+
+        Returns:
+            bytes: The HTTP response header as bytes.
+        """
         response_header = (
             f'HTTP/1.1 {response}\r\n'.encode()+
             f'Content-Length: {content_lenght}\r\n'.encode()+ 
@@ -199,7 +242,17 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         return response_header
 
     def post_request(self, filename):
-        # Determine the response status based on whether the file exists or is created.
+        """
+        Handle a POST request for a specific file.
+
+        Args:
+            filename (str): The name of the file to which the data will be appended.
+
+        Returns:
+            None
+        """
+
+        # Determine the response status based on whether or not the file exists.
         if os.path.exists(filename): 
             response_status = '200 OK'
             file_size = os.path.getsize(filename)
@@ -207,14 +260,11 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             response_status = '201 Created'
             file_size = 0
 
-        # Print the response status for debugging purposes
-        print(response_status)
-
         # Read the request body with the specified Content-Length
         content_length = self.find_length()
         request_body = self.rfile.read(content_length).decode().strip()
 
-        # Unquote the body to handle special characters (e.g., æ, ø, å) and update the size to include the new message 
+        # Unquote the body to handle special characters (æ, ø, å) and update the size to incorporate the new message. 
         body = urllib.parse.unquote(request_body)[5:]  # Start at 5 to skip "text=" prefix
         file_size += len(body)
 
@@ -226,7 +276,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         with open(filename, "rb") as f:    
             content = f.readlines()
 
-        # Determine the content type based on the file extension, create and write the HTTP response header
+        # Determine the content type depending on the file extension, then construct and write the HTTP response header.
         content_type = find_content_type(filename)
         response_header = self.create_responseheader(response_status, content_type, file_size)
         self.wfile.write(response_header)
@@ -236,6 +286,12 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             self.wfile.write(line)  # Write each line of content
 
     def find_length(self):
+        """
+        Extract the Content-Length from the HTTP request headers.
+
+        Returns:
+            int: The Content-Length value extracted from the headers.
+        """
         # Read the HTTP request headers to extract the Content-Length
         while True:
             header_line = self.rfile.readline().decode().strip()
@@ -252,30 +308,46 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         return content_length
         
     def post_json(self, filename):
+        """
+        Handle a POST request to append JSON data to a file and respond with JSON data.
+
+        Args:
+            filename (str): The name of the file to append JSON data to.
+
+        Returns:
+            None
+        """
         length = self.find_length()
         print("length \n", length)
 
-        json_data = json.loads(self.rfile.read(length))       # må finne lengden av headern? og lese inn det
+        # Use the Content-Length header to get the length of the JSON data.
+        json_data = json.loads(self.rfile.read(length))    
+
+        # Generate a new message with a unique ID and the text from the JSON data.
         new_ID = len(messages) + 1
         new_message = {"ID": new_ID, "Text": json_data["text"]}
 
-        # Calculate the content length as the length of the JSON string
+        # Calculate the content length of the response JSON data and retrieve the content length of the response JSON data
         response_content = json.dumps(new_message, indent=4)  # Format with proper indentation (to get them below eachoter) source: https://pynative.com/python-prettyprint-json-data/
         content_length = len(response_content)
-
-        print("content length: \n", content_length)
+        
+        # Create an HTTP response header
         response_header = self.create_responseheader('200 OK', "application/json", content_length)
 
+        # Append the new message to the 'messages' list
         messages.append(new_message)
 
+        # Convert the new message to JSON and send it as the response
         response = json.dumps(new_message, indent=4)
         self.wfile.write(response_header)  # Write the response header
 
         # Write the formatted JSON content to the response
         self.wfile.write(response_content.encode())
         
-
     def put_request(self):
+        """
+        Handle a PUT request to update a message with new content.
+        """
         # Parse the JSON request body
         content_length = self.find_length()
         json_data = json.loads(self.rfile.read(content_length).decode())
@@ -307,10 +379,16 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             response_header = self.create_responseheader('404 Not Found', "application/json", 0)
             self.wfile.write(response_header)
 
-    
-        
-
     def delete_request(self, filename):
+        """
+        Handle a DELETE request to remove a message with a specific ID.
+
+        Args:
+            filename (str): The name of the file (not used in this context).
+
+        Returns:
+        None
+        """
         # Read the request body to get the ID of the message to be deleted
         content_length = self.find_length()
         json_data = json.loads(self.rfile.read(content_length).decode())
@@ -359,8 +437,17 @@ def find_content_type(filename):
     # Lookup the type in the content_type dictionary based on the extension.
     return content_type.get(extension)
 
-# Emilie helpt me with the htlm code 
 def generate_error_html_body(error_code, message):
+    """
+    Generate an HTML body for displaying an error message.
+
+    Args:
+        error_code (int): The HTTP error code.
+        message (str): The error message.
+
+    Returns:
+        str: The HTML body as a string.
+    """
     error_body = f"""
         <html>
         <body>
@@ -371,6 +458,15 @@ def generate_error_html_body(error_code, message):
     return error_body
 
 def error_handling(error_code):
+    """
+    Generate an HTTP response for a given error code.
+
+    Args:
+        error_code (int): The HTTP error code.
+
+    Returns:
+        str: The complete HTTP response as a string, including headers and error message body.
+    """
     if error_code == 404:
         message = "Not Found"
         content = "HTTP/1.1 404 Not Found \r\n"
