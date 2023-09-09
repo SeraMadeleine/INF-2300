@@ -285,7 +285,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         for line in content: 
             self.wfile.write(line)  # Write each line of content
         # Save the updated 'messages' list to the storage file
-        self.save_messages_to_file()
+        self.save_messages_to_file(filename)
 
     def find_length(self):
         """
@@ -353,7 +353,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         # Write the formatted JSON content to the response
         self.wfile.write(response_content.encode())
         # Save the updated 'messages' list to the storage file
-        self.save_messages_to_file()
+        self.save_messages_to_file(filename)
         
     def put_request(self):
         """
@@ -390,7 +390,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             response_header = self.create_responseheader('404 Not Found', "application/json", 0)
             self.wfile.write(response_header)
         # Save the updated 'messages' list to the storage file
-        self.save_messages_to_file()
+        self.save_messages_to_file("message.json")
 
     def delete_request(self, filename):
         """
@@ -434,7 +434,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             self.wfile.write(response_header)
         
         # Save the updated 'messages' list to the storage file
-        self.save_messages_to_file()
+        self.save_messages_to_file(filename)
 
     def load_messages_from_file():
         """
@@ -448,13 +448,12 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             # If the storage file doesn't exist yet, initialize an empty 'messages' list
             messages = []
 
-    def save_messages_to_file(self):
+    def save_messages_to_file(self, filename):
         """
         Save messages from the 'messages' list into a storage file (e.g., message.json).
         """
-        with open("message.json", 'w') as storage_file:
+        with open(filename, 'w') as storage_file:
             json.dump(messages, storage_file, indent=4)
-
 
 
 # All definitions are found here: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
