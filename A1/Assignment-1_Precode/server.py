@@ -199,11 +199,13 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         return response_header
 
     def post_request(self, filename):
-    # Determine the response status based on whether the file exists or is created.
+        # Determine the response status based on whether the file exists or is created.
         if os.path.exists(filename): 
             response_status = '200 OK'
+            file_size = os.path.getsize(filename)
         else: 
             response_status = '201 Created'
+            file_size = 0
 
         # Print the response status for debugging purposes
         print(response_status)
@@ -214,6 +216,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         # Unquote the body to handle special characters (e.g., æ, ø, å)
         body = urllib.parse.unquote(request_body)[5:]  # Start at 5 to skip "text=" prefix
+        file_size += len(body)
 
         # Append the body to the file
         with open(filename, 'ab') as f:
@@ -227,11 +230,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         content_type = find_content_type(filename)
 
         # Create the HTTP response header
-        response_header = (
-            f'HTTP/1.1 {response_status}\r\n'.encode() +
-            # f'Content-Length: {content_length}\r\n'.encode() +
-            f'Content-Type: {content_type}\r\n\r\n'.encode() 
-        )
+        response_header = self.create_responseheader(response_status, content_type, file_size)
 
         # Write the response header to the client
         self.wfile.write(response_header)
