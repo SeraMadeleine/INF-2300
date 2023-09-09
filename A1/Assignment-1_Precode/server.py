@@ -284,6 +284,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         # Write the file content to the client
         for line in content: 
             self.wfile.write(line)  # Write each line of content
+        # Save the updated 'messages' list to the storage file
+        self.save_messages_to_file()
 
     def find_length(self):
         """
@@ -317,6 +319,13 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         Returns:
             None
         """
+
+        # Determine the response status based on whether or not the file exists.
+        if os.path.exists(filename): 
+            response_status = '200 OK'
+        else: 
+            response_status = '201 Created'
+
         length = self.find_length()
         print("length \n", length)
 
@@ -332,7 +341,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         content_length = len(response_content)
         
         # Create an HTTP response header
-        response_header = self.create_responseheader('200 OK', "application/json", content_length)
+        response_header = self.create_responseheader(response_status, "application/json", content_length)
 
         # Append the new message to the 'messages' list
         messages.append(new_message)
@@ -343,6 +352,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         # Write the formatted JSON content to the response
         self.wfile.write(response_content.encode())
+        # Save the updated 'messages' list to the storage file
+        self.save_messages_to_file()
         
     def put_request(self):
         """
@@ -378,6 +389,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             # If the message with the given ID doesn't exist, return a not found error
             response_header = self.create_responseheader('404 Not Found', "application/json", 0)
             self.wfile.write(response_header)
+        # Save the updated 'messages' list to the storage file
+        self.save_messages_to_file()
 
     def delete_request(self, filename):
         """
@@ -419,6 +432,28 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             # If the message with the given ID doesn't exist, return a not found error
             response_header = self.create_responseheader('404 Not Found', "application/json", 0)
             self.wfile.write(response_header)
+        
+        # Save the updated 'messages' list to the storage file
+        self.save_messages_to_file()
+
+    def load_messages_from_file():
+        """
+        Load messages from a storage file (e.g., message.json) into the 'messages' list.
+        """
+        global messages
+        try:
+            with open("message.json", 'r') as storage_file:
+                messages = json.load(storage_file)
+        except FileNotFoundError:
+            # If the storage file doesn't exist yet, initialize an empty 'messages' list
+            messages = []
+
+    def save_messages_to_file(self):
+        """
+        Save messages from the 'messages' list into a storage file (e.g., message.json).
+        """
+        with open("message.json", 'w') as storage_file:
+            json.dump(messages, storage_file, indent=4)
 
 
 
@@ -495,4 +530,5 @@ if __name__ == "__main__":
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer((HOST, PORT), MyTCPHandler) as server:
         print("Serving at: http://{}:{}".format(HOST, PORT))
+        MyTCPHandler.load_messages_from_file()
         server.serve_forever()
