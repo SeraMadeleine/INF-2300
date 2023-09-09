@@ -210,11 +210,11 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         # Print the response status for debugging purposes
         print(response_status)
 
-        content_length = self.find_lenght()
         # Read the request body with the specified Content-Length
+        content_length = self.find_lenght()
         request_body = self.rfile.read(content_length).decode().strip()
 
-        # Unquote the body to handle special characters (e.g., æ, ø, å)
+        # Unquote the body to handle special characters (e.g., æ, ø, å) and update the size to include the new message 
         body = urllib.parse.unquote(request_body)[5:]  # Start at 5 to skip "text=" prefix
         file_size += len(body)
 
@@ -226,13 +226,9 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         with open(filename, "rb") as f:    
             content = f.readlines()
 
-        # Determine the content type based on the file extension
+        # Determine the content type based on the file extension, create and write the HTTP response header
         content_type = find_content_type(filename)
-
-        # Create the HTTP response header
         response_header = self.create_responseheader(response_status, content_type, file_size)
-
-        # Write the response header to the client
         self.wfile.write(response_header)
 
         # Write the file content to the client
