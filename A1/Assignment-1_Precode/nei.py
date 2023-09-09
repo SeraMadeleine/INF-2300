@@ -202,8 +202,10 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
     # Determine the response status based on whether the file exists or is created.
         if os.path.exists(filename): 
             response_status = '200 OK'
+            file_size = os.path.getsize(filename)
         else: 
             response_status = '201 Created'
+            file_size = 0
 
         # Print the response status for debugging purposes
         print(response_status)
@@ -214,6 +216,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         # Unquote the body to handle special characters (e.g., æ, ø, å)
         body = urllib.parse.unquote(request_body)[5:]  # Start at 5 to skip "text=" prefix
+        file_size += len(body)
 
         # Append the body to the file
         with open(filename, 'ab') as f:
@@ -229,7 +232,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         # Create the HTTP response header
         response_header = (
             f'HTTP/1.1 {response_status}\r\n'.encode() +
-            # f'Content-Length: {content_length}\r\n'.encode() +
+            f'Content-Length: {file_size}\r\n'.encode() +
             f'Content-Type: {content_type}\r\n\r\n'.encode() 
         )
 
@@ -257,16 +260,12 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         return content_length
         
     def post_json(self, filename):
-        # TODO: legg til at den skriver til en ny fil som lages hvis den ikke eksisterer 
-        length = self.find_lenght()
-        print("length \n", length)
-        json_data = json.loads(self.rfile.read(length))       # må finne lengden av headern? og lese inn det
-        new_ID = len(messages)+1
+        json_data = json.loads(self.rfile.read())       # må finne lengden av headern? og lese inn det
+        new_ID = self.create_id()
         new_message = {"ID": new_ID, "Text": json_data["text"]}
 
-        content_length = str(len(new_message)+length)
-        print("content length: \n", content_length)
-        response_header = self.create_responseheader('200 OK', "application/json", content_length)
+        content_length = str(len(json_data))
+        response_header = self.create_responseheader("application/json", content_length)
 
         messages.append(new_message)
 

@@ -229,3 +229,78 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("Shutting down")
         server.shutdown()
+
+
+
+
+
+def POST(self, file_name:str, body:bytes, body_length:int, content_type:bytes):
+        #if file already exists
+        if(self.FileExist(file_name) == True):
+            #open file name
+            with open (file_name) as file:
+                data = file.read()
+                list_data = json.loads(data)
+                #if there is no content in given file
+                
+                if(len(list_data) == 0):
+                    content = {"id": 1, "text": body(b"")}
+                    list_data.append(content)
+                #if there is content in given file
+                else:
+                    content = {"id": len(list_data)+1, "text": body(b"")}
+                    list_data.append(content)
+                file.close()
+                    #open file name in "write" mode and replace list data
+                with open("messages.json", "a") as file:
+                    json.dump(list_data, file)
+                    file.close()
+                    self.WriteHead(200, 0, b"", b"")
+        #file does not exist, create new one
+        elif(self.FileExist(file_name) == False): 
+            #if file is of type ".json"
+            if "messages" in file_name:
+                new_file = open("sera.json", "w")
+                content = {"id": 1, "text": body.decode()}
+                json_list = []
+                json_list.append(content)
+                json.dump(json_list, new_file)
+                self.WriteHead(201, len(json_list), b"list", b"")
+                new_file.close()
+                #if file is not of type .json
+            else:
+                new_file = open(file_name, "wb")
+                new_file.write(body)
+                new_file.close()
+                #reopen file to write correct response body
+                file = open(file_name, "rb")
+                response_body = file.read()
+                self.WriteHead(201, len(response_body), content_type, response_body)
+
+
+
+def DELETE(self, file_name:str):
+        if(self.FileExist("messages.json") == True):
+            #fetch which message id to delete
+            id_input = input ("Enter ID to delete: ")
+            #open file
+            with open("messages.json") as file:
+                list_data = json.load(file)
+                #search for id in data from file
+                for i in range(len(list_data)):
+                    if(list_data[i]["id"] == int(id_input)):
+                        del list_data[i]
+                        file.close()
+                        break
+            #opening file name in write mode and overwrite with data
+            with open("messages.json", "w") as file:
+                json.dump(list_data, file)
+                file.close()
+                self.WriteHead(200, 0, b"", b"")
+
+        #file does not exist
+        else:
+            print("ERROR: can not DELETE from file, it does not exist...\n")
+            self.WriteHead(404, 0, b"", b"")
+
+
