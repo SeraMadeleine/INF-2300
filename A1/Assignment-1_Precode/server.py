@@ -252,21 +252,27 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         return content_length
         
     def post_json(self, filename):
-        # TODO: legg til at den skriver til en ny fil som lages hvis den ikke eksisterer 
         length = self.find_lenght()
         print("length \n", length)
+
         json_data = json.loads(self.rfile.read(length))       # må finne lengden av headern? og lese inn det
-        new_ID = len(messages)+1
+        new_ID = len(messages) + 1
         new_message = {"ID": new_ID, "Text": json_data["text"]}
 
-        content_length = str(len(new_message)+length)
+        # Calculate the content length as the length of the JSON string
+        response_content = json.dumps(new_message, indent=4)  # Format with proper indentation
+        content_length = len(response_content)
+
         print("content length: \n", content_length)
         response_header = self.create_responseheader('200 OK', "application/json", content_length)
 
         messages.append(new_message)
 
-        response = json.dumps(new_message)
-        self.wfile.write(response_header + response.encode())
+        response = json.dumps(new_message, indent=4)
+        self.wfile.write(response_header)  # Write the response header
+
+        # Write the formatted JSON content to the response
+        self.wfile.write(response_content.encode())
         
 
     def put_request(self, filename):
