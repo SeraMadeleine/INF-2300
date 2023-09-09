@@ -119,7 +119,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             if URI.startswith('/message'):
                 filename = 'message.json'
                 # Handle PUT request to update a message
-                self.put_request(filename)
+                self.put_request()
             else:
                 # Handle other PUT requests (404)
                 pass
@@ -211,7 +211,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         print(response_status)
 
         # Read the request body with the specified Content-Length
-        content_length = self.find_lenght()
+        content_length = self.find_length()
         request_body = self.rfile.read(content_length).decode().strip()
 
         # Unquote the body to handle special characters (e.g., æ, ø, å) and update the size to include the new message 
@@ -235,7 +235,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         for line in content: 
             self.wfile.write(line)  # Write each line of content
 
-    def find_lenght(self):
+    def find_length(self):
         # Read the HTTP request headers to extract the Content-Length
         while True:
             header_line = self.rfile.readline().decode().strip()
@@ -252,7 +252,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         return content_length
         
     def post_json(self, filename):
-        length = self.find_lenght()
+        length = self.find_length()
         print("length \n", length)
 
         json_data = json.loads(self.rfile.read(length))       # må finne lengden av headern? og lese inn det
@@ -275,9 +275,9 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         self.wfile.write(response_content.encode())
         
 
-    def put_request(self, filename):
+    def put_request(self):
         # Parse the JSON request body
-        content_length = self.find_lenght()
+        content_length = self.find_length()
         json_data = json.loads(self.rfile.read(content_length).decode())
 
         # Find the ID in the request data
@@ -299,10 +299,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 break
 
         if updated:
-            # If the message was updated successfully, save the updated list to the file
-            with open(filename, 'w') as f:
-                json.dump(messages, f, indent=4)
-            
             # Respond with a success status code
             response_header = self.create_responseheader('200 OK', "application/json", 0)
             self.wfile.write(response_header)
@@ -311,36 +307,41 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             response_header = self.create_responseheader('404 Not Found', "application/json", 0)
             self.wfile.write(response_header)
 
-
-
+    
         
 
     def delete_request(self, filename):
-        """"
-        Delete the message and the related id
-        """
-        # find the lenght
-        content_lenght = 100        # TODO: må finne den faktiske lengden
-        text = self.rfile.read(content_lenght).decode()
-        content_type = find_content_type(filename)
+        # Read the request body to get the ID of the message to be deleted
+        content_length = self.find_length()
+        json_data = json.loads(self.rfile.read(content_length).decode())
 
-        with open(filename, "r") as f:
-            # read the file and create a list with dictionaries
-            content = json.load(f)
-        
-        dictionary = json.load(text)
-        
-        for ID in content:
-            if ID['id'] == dictionary['id']:
-                content.remove(ID)
+        # Find the ID in the request data
+        message_id = json_data.get("ID")
+
+        if message_id is None:
+            # Return an error response if the ID is missing in the request
+            response_header = self.create_responseheader('400 Bad Request', "application/json", 0)
+            self.wfile.write(response_header)
+            return
+
+        # Search for the message with the given ID
+        deleted = False
+        for message in messages:
+            if message["ID"] == message_id:
+                # Delete the message and free its ID
+                messages.remove(message)
+                deleted = True
                 break
-        with open(filename, 'w') as f:
-            f.write(json.dumps(content))
 
-        response_header = self.create_responseheader('200 OK', content_type, content_lenght)
+        if deleted:
+            # Respond with a success status code
+            response_header = self.create_responseheader('200 OK', "application/json", 0)
+            self.wfile.write(response_header)
+        else:
+            # If the message with the given ID doesn't exist, return a not found error
+            response_header = self.create_responseheader('404 Not Found', "application/json", 0)
+            self.wfile.write(response_header)
 
-        self.wfile.write(response_header)
-        self.wfile.close()
 
 
 # All definitions are found here: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types

@@ -210,7 +210,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         # Print the response status for debugging purposes
         print(response_status)
 
-        content_length = self.find_lenght()
+        content_length = self.find_length()
         # Read the request body with the specified Content-Length
         request_body = self.rfile.read(content_length).decode().strip()
 
@@ -243,7 +243,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         for line in content: 
             self.wfile.write(line)  # Write each line of content
 
-    def find_lenght(self):
+    def find_length(self):
         # Read the HTTP request headers to extract the Content-Length
         while True:
             header_line = self.rfile.readline().decode().strip()
