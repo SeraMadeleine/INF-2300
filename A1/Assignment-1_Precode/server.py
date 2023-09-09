@@ -260,7 +260,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         new_message = {"ID": new_ID, "Text": json_data["text"]}
 
         # Calculate the content length as the length of the JSON string
-        response_content = json.dumps(new_message, indent=4)  # Format with proper indentation
+        response_content = json.dumps(new_message, indent=4)  # Format with proper indentation (to get them below eachoter) source: https://pynative.com/python-prettyprint-json-data/
         content_length = len(response_content)
 
         print("content length: \n", content_length)
@@ -276,31 +276,44 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         
 
     def put_request(self, filename):
-        """
-        PUT is used to update an existing resource.
+        # Parse the JSON request body
+        content_length = self.find_lenght()
+        json_data = json.loads(self.rfile.read(content_length).decode())
 
-        """
-        # find the lenght 
-        content_lenght = 100        # TODO: må finne den faktiske lengden 
-        text = self.rfile.read(content_lenght).decode()
-        content_type = find_content_type(filename)
+        # Find the ID in the request data
+        message_id = json_data.get("ID")
 
-        with open(filename, "r") as f: 
-            # read the file and create a list with dictionaries
-            content = json.load(f)
+        if message_id is None:
+            # Return an error response if the ID is missing in the request
+            response_header = self.create_responseheader('400 Bad Request', "application/json", 0)
+            self.wfile.write(response_header)
+            return
 
-        # Create a dictionary with the key and text 
-        dictionary = json.loads(text)
-
-        # Get the message for the corresponding ID
-        for ID in content: 
-            if ID['id'] == dictionary['id']:
-                ID['message'] = dictionary['message']
+        # Search for the message with the given ID
+        updated = False
+        for message in messages:
+            if message["ID"] == message_id:
+                # Update the message's text with the new content
+                message["Text"] = json_data["Text"]
+                updated = True
                 break
+
+        if updated:
+            # If the message was updated successfully, save the updated list to the file
+            with open(filename, 'w') as f:
+                json.dump(messages, f, indent=4)
+            
+            # Respond with a success status code
+            response_header = self.create_responseheader('200 OK', "application/json", 0)
+            self.wfile.write(response_header)
+        else:
+            # If the message with the given ID doesn't exist, return a not found error
+            response_header = self.create_responseheader('404 Not Found', "application/json", 0)
+            self.wfile.write(response_header)
+
+
+
         
-        with open(filename, "w") as f: 
-            # write the updated list to the file
-            f.write(json.dumps(content))
 
     def delete_request(self, filename):
         """"
