@@ -15,11 +15,6 @@ UiT - The Arctic University of Norway
 May 9th, 2019
 """
 
-# Constants
-INDEX_HTML = "/index.html"
-FAVICON_ICO = "/favicon.ico"
-TEST_TXT = "/test.txt"
-MESSAGE_JSON = "/message.json"
 
 # Instans
 handle_error = Error()
@@ -83,9 +78,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 if  URI == "/":
                     URI = "/index.html"
 
-                # Remove the / from the URI to get the filname 
-                filename = URI[1:]
-                self.get_request(filename, 'rb')
+                self.get_request(self.get_filname(URI), 'rb')
 
             elif URI == "/test.txt":
                 filename = URI[1:]
@@ -94,8 +87,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             elif URI.startswith('/message'):
                 print("got message")
                 # Handle GET request for messages
-                filename = 'message.json'
-                self.get_json(filename)
+                URI = "/message.json"
+                self.get_json(self.get_filname(URI))
             
             else:
                 print("ups error")
@@ -104,14 +97,13 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         elif HTTP_method == 'POST':
             # Handle POST request for creating a new text test.txt or message.json
             if URI == "/test.txt":
-                filename = URI[1:]
-                self.post_request(filename)
+                self.post_request(self.get_filname(URI))
 
             
             elif URI.startswith('/message'):
+                URI = "/message.json"
                 # Handle POST request to create a new message
-                filename = 'message.json'
-                self.post_json(filename) 
+                self.post_json(self.get_filname(URI)) 
 
             else:
                 # Return a 403 Forbidden error for other POST requests
@@ -119,9 +111,9 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         elif HTTP_method == 'PUT':
             if URI.startswith('/message'):
+                URI = "/message.json"
                 # Handle PUT request to update a message
-                filename = 'message.json'
-                self.put_request(filename)
+                self.put_request(self.get_filname(URI))
             else:
                 # Return a 404 Not Found error
                 self.wfile.write(handle_error.error_handling(404).encode())
@@ -129,9 +121,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         elif HTTP_method == 'DELETE':
             if URI.startswith('/message'):
                 #  Handle DELETE request for deleting a message
-                filename = 'message.json'
-
-                self.delete_request(filename)
+                URI = "/message.json"
+                self.delete_request(self.get_filname(URI))
             else:
                 # Return a 404 Not Found error
                 self.wfile.write(handle_error.error_handling(404).encode())
@@ -357,7 +348,11 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         """
         with open(filename, 'w') as storage_file:
             json.dump(messages, storage_file, indent=4)  
-
+    
+    def get_filname(self, URI):
+        filename = URI[1:]
+        return filename
+        
 
 
 
