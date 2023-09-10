@@ -46,12 +46,19 @@ class Error:
         Returns:
             str: The complete HTTP response as a string, including headers and error message body.
         """
-        if error_code == 404:
-            message = "Not Found"
-            content = "HTTP/1.1 404 Not Found \r\n"
+        
+        if error_code == 204:
+            message = "No Content"
+            content = "HTTP/1.1 204 No Content \r\n"
+        elif error_code == 400:
+            message = "Bad Request"
+            content = "HTTP/1.1 400 Bad Request \r\n"
         elif error_code == 403:
             message = "Forbidden"
             content = "HTTP/1.1 403 Forbidden \r\n"
+        elif error_code == 404:
+            message = "Not Found"
+            content = "HTTP/1.1 404 Not Found \r\n"
         elif error_code == 405:
             message = "Method Not Allowed"
             content = "HTTP/1.1 405 Method Not Allowed \r\n"
