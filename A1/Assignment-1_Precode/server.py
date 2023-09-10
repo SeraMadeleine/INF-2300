@@ -171,20 +171,24 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         Returns:
             None
         """
-        if os.path.exists(filename):
-            response = '200 OK'
-        else:
-            print('There is not eny content yet')
-            response = '404 Not Found'
+        if not os.path.exists(filename):
+            # Send a 404 Not Found response if the file does not exist
+            self.wfile.write(handle_error.error_handling(404).encode())
+            return
 
         # Convert the 'message' list to a JSON-formatted string
-        json_data = json.dumps(messages)
+        json_data = json.dumps(messages, indent=4)
 
         # Calculate the content length
         content_length = len(json_data)
 
+        # If there are no messages or only empty brackets in the JSON data, send a custom error response
+        if content_length <= 2: 
+            self.wfile.write(handle_error.error_handling(204).encode())
+            return
+
         # Make a response header and send the response header and JSON data to the client.
-        response_header = HTTPHandler.create_response_header(response, "application/json", content_length)
+        response_header = HTTPHandler.create_response_header('200 OK', "application/json", content_length)
         self.wfile.write(response_header + json_data.encode())
 
     def post_request(self, filename):
@@ -230,27 +234,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         for line in content: 
             self.wfile.write(line)  # Write each line of content
 
-    def find_length(self):
-        """
-        Extract the Content-Length from the HTTP request headers.
-
-        Returns:
-            int: The Content-Length value extracted from the headers.
-        """
-        # Read the HTTP request headers to extract the Content-Length
-        while True:
-            header_line = self.rfile.readline().decode().strip()
-            if not header_line:
-                # Empty line indicates the end of headers
-                break
-            if ':' not in header_line:
-                # Skip invalid header field lines
-                continue
-            header_name, header_value = header_line.split(":", 1)
-            if header_name == "Content-Length":
-                content_length = int(header_value)
-
-        return content_length
         
     def post_json(self, filename):
         """
@@ -264,16 +247,13 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         """
 
         # Determine the response status based on whether or not the file exists.
-        if os.path.exists(filename): 
-            response_status = '200 OK'
-        else: 
-            response_status = '201 Created'
+        response_status = '200 OK' if os.path.exists(filename) else '201 Created'
 
-        length = self.find_length()
-        print("length \n", length)
+
+        content_length = self.find_length()
 
         # Use the Content-Length header to get the length of the JSON data.
-        json_data = json.loads(self.rfile.read(length))    
+        json_data = json.loads(self.rfile.read(content_length))    
 
         # Generate a new message with a unique ID and the text from the JSON data.
         
@@ -296,24 +276,11 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         # Append the new message to the 'messages' list
         messages.append(new_message)
 
-        # Convert the new message to JSON and send it as the response
-        self.wfile.write(response_header)  # Write the response header
+        # Write the response header and its content
+        self.wfile.write(response_header + response_content.encode())  
 
-        # Write the formatted JSON content to the response
-        self.wfile.write(response_content.encode())
         # Save the updated 'messages' list to the storage file
         self.save_messages_to_file(filename)
-        
-    def save_messages_to_file(self, filename):
-        """
-        Save messages from the 'messages' list into a storage file (e.g., message.json).
-        """
-        with open(filename, 'w') as storage_file:
-            json.dump(messages, storage_file, indent=4)  
-    
-    def get_filname(self, URI):
-        filename = URI[1:]
-        return filename
         
     def put_request(self, filename):
         """
@@ -408,7 +375,41 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         """
         response_header = HTTPHandler.create_response_header(status_code, type, content_length)
         self.wfile.write(response_header)
+    
+    def save_messages_to_file(self, filename):
+        """
+        Save messages from the 'messages' list into a storage file (e.g., message.json).
+        """
+        with open(filename, 'w') as storage_file:
+            json.dump(messages, storage_file, indent=4)  
+    
+    def get_filname(self, URI):
+        filename = URI[1:]
+        return filename
 
+    def find_length(self):  
+        """
+        Extract the Content-Length from the HTTP request headers.
+
+        Returns:
+            int: The Content-Length value extracted from the headers.
+        """
+        content_length = 0
+
+        #  Read the HTTP request headers until an empty line is encountered 
+        while True:
+            header_line = self.rfile.readline().decode().strip()
+            if not header_line:
+                # Empty line indicates the end of headers
+                break
+            if ':' not in header_line:
+                # Skip invalid header field lines
+                continue
+            header_name, header_value = header_line.split(":", 1)
+            if header_name == "Content-Length":
+                content_length = int(header_value.strip())
+
+        return content_length
 
 
 def load_messages_from_file():
@@ -420,6 +421,7 @@ def load_messages_from_file():
         with open("message.json", 'r') as storage_file:
             messages = json.load(storage_file)
     
+
 
 
 if __name__ == "__main__":
