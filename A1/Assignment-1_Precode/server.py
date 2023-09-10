@@ -13,9 +13,10 @@ UiT - The Arctic University of Norway
 May 9th, 2019
 """
 
-
+# Messages are stored in a list. The messages are represented as dictionaries, containing keys such as "ID" and "Text"
 messages = []
 
+# Dictionary that maps the file to the corresponding type
 content_type = {
     ".html": "text/html",
     ".css": "text/css",
@@ -59,24 +60,23 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         """
 
         # Request, parse, and process the requested link 
-        request_line = self.rfile.readline().decode('utf-8').strip() # By using utf-8 encoding in decode(), you ensure that the bytes are properly decoded 
+        request_line = self.rfile.readline().decode('utf-8').strip()    # Using utf-8 encoding in decode() ensures that bytes are correctly decoded. 
         requested_part = request_line.split()
 
         print(requested_part)
 
-        # Check if the request is valid and force the HTTP method to be upper letters, and URI to be lower letters 
+        # Determine whether the request is legitimate and force the HTTP method to be uppercase and the URI to be lowercase. 
         if len(requested_part) >= 2:
             HTTP_method = requested_part[0].upper()
             URI = requested_part[1].lower()
 
-        # Chek if the HTTP methode is Get, Post 
+        # Determine if the HTTP method is GET, POST, PUT, or DELETE and handle it accordingly.
         if HTTP_method == "GET":
-            print(URI)
-            # check that the file type is legal, .py and .md should not be leagle
+            # Verify that the file type is legal;.py and.md should not be allowed.
             if URI.endswith('.py') or URI.endswith("md"):
                 self.wfile.write(error_handling(403).encode())
 
-            # get the index or the idex
+            # Respond to requests for specified resources.
             elif URI == "/" or URI == "/index.html" or URI == "/favicon.ico":
                 # If the URI is "/" set it to be "/index.html"
                 if  URI == "/":
@@ -102,6 +102,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 
 
         elif HTTP_method == 'POST':
+            # Handle POST request for creating a new text test.txt or message.json
             if URI == "/test.txt":
                 filename = URI[1:]
                 self.post_request(filename)
@@ -113,27 +114,30 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 self.post_json(filename) 
 
             else:
+                # Return a 403 Forbidden error for other POST requests
                 self.wfile.write(error_handling(403).encode())
 
         elif HTTP_method == 'PUT':
             if URI.startswith('/message'):
-                filename = 'message.json'
                 # Handle PUT request to update a message
+                filename = 'message.json'
                 self.put_request(filename)
             else:
-                # Handle other PUT requests (404)
-                pass
+                # Return a 404 Not Found error
+                self.wfile.write(error_handling(404).encode())
 
         elif HTTP_method == 'DELETE':
             if URI.startswith('/message'):
+                #  Handle DELETE request for deleting a message
                 filename = 'message.json'
 
                 self.delete_request(filename)
             else:
-                # Handle other DELETE requests (404)
-                pass
+                # Return a 404 Not Found error
+                self.wfile.write(error_handling(404).encode())
 
         else:
+            # Return a 404 Not Found error for unsupported HTTP methods
             self.wfile.write(error_handling(404).encode())
     
     def get_request(self, filename, mode):
