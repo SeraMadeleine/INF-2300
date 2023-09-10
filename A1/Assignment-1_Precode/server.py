@@ -141,6 +141,16 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             self.wfile.write(error_handling(404).encode())
     
     def get_request(self, filename, mode):
+        """
+        Handle a GET request for a specific file.
+
+        Args:
+            filename (str): The name of the file to retrieve.
+            mode (str): The mode in which to open the file ('rb' for binary, 'r' for text).
+
+        Returns:
+            None
+        """
         # Open the file and store its content for writing later 
         with open(filename, mode) as f: 
             content = f.read()
@@ -156,24 +166,39 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         self.wfile.write(response_header + content)
 
     def get_test(self, filename, mode):
+        """
+        Handle a GET request for a specific test file.
+
+        Args:
+            filename (str): The name of the file to retrieve.
+            mode (str): The mode in which to open the file ('r' for text, 'rb' for binary).
+
+        Returns:
+            None
+        """
         if os.path.exists(filename):
             # __file__.replace(fila du er på (server.py), det dub vil replace med (test))
+            # If the file provided exists on the server
             with open(filename, mode) as f:     
                 content = f.read()
 
                 # TODO: regne ut lengden og fremdeles få den til å skrive ut alt 
+                # Determine the content type of the file and construct an HTTP response header
                 content_type = find_content_type(filename)
                 response_header = (
                     b'HTTP/1.1 200 OK\r\n'+
                     f'Content-Type: {content_type}\r\n\r\n'.encode() 
                 )
+
+                # Send the response header to the client
                 self.wfile.write(response_header)
 
+                # Send the file content to the client line by line
                 for line in content: 
                     self.wfile.write(line.encode())     # encode() = bytes 
         else:
-                    # create a response 404
-                    self.wfile.write(error_handling(404).encode())                
+            # Send a 404 Not Found response if the provided file does not exist.
+            self.wfile.write(error_handling(404).encode())                
 
     def get_json(self, filename):
         """
