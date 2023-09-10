@@ -137,67 +137,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         else:
             # Return a 404 Not Found error for unsupported HTTP methods
             self.wfile.write(error_handling(404).encode())
-    
-    def get_request(self, filename, mode):
-        """
-        Handle a GET request for a specific file.
 
-    Args:
-        filename (str): The name of the file to retrieve.
-        mode (str): The mode in which to open the file ('rb' for binary, 'r' for text).
-
-    Returns:
-        None
-        """
-        # Open the file and store its content for writing later 
-        with open(filename, mode) as f: 
-            content = f.read()
-        
-        # Find the content type and length 
-        content_type = find_content_type(filename)
-        content_lenght = len(content)
-
-        # Create the response header 
-        response_header = self.create_responseheader('200 OK', content_type, content_lenght)
-
-        # Write the response header and the content of the file
-        self.wfile.write(response_header + content)
-
-    def get_test(self, filename, mode):
-        """
-        Handle a GET request for a specific test file.
-
-        Args:
-            filename (str): The name of the file to retrieve.
-            mode (str): The mode in which to open the file ('r' for text, 'rb' for binary).
-
-        Returns:
-            None
-        """
-        if os.path.exists(filename):
-            # __file__.replace(fila du er på (server.py), det dub vil replace med (test))
-            # If the file provided exists on the server
-            with open(filename, mode) as f:     
-                content = f.read()
-
-                # TODO: regne ut lengden og fremdeles få den til å skrive ut alt 
-                
-                # Determine the content type of the file and construct an HTTP response header
-                content_type = find_content_type(filename)
-                response_header = (
-                    b'HTTP/1.1 200 OK\r\n'+
-                    f'Content-Type: {content_type}\r\n\r\n'.encode() 
-                )
-
-                # Send the response header to the client
-                self.wfile.write(response_header)
-
-                # Send the file content to the client line by line
-                for line in content: 
-                    self.wfile.write(line.encode())     # encode() = bytes 
-        else:
-            # Send a 404 Not Found response if the provided file does not exist.
-            self.wfile.write(error_handling(404).encode())                
+            
 
     def get_json(self, filename):
         """
@@ -229,26 +170,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         self.wfile.write(response_header + json_data.encode())
 
 
-    def create_responseheader(self, response, content_type, content_lenght):
-        """
-        Create an HTTP response header.
-
-        Args:
-            response (str): The HTTP response status (e.g., '200 OK', '404 Not Found').
-            content_type (str): The content type of the response (e.g., 'application/json').
-            content_length (int): The length of the response content.
-
-        Returns:
-            bytes: The HTTP response header as bytes.
-        """
-        response_header = (
-            f'HTTP/1.1 {response}\r\n'.encode()+
-            f'Content-Length: {content_lenght}\r\n'.encode()+ 
-            f'Content-Type: {content_type}\r\n\r\n'.encode()
-        )
-
-        return response_header
-
+    
     def post_request(self, filename):
         """
         Handle a POST request for a specific file.
@@ -295,27 +217,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         # Save the updated 'messages' list to the storage file
         self.save_messages_to_file(filename)
 
-    def find_length(self):
-        """
-        Extract the Content-Length from the HTTP request headers.
-
-        Returns:
-            int: The Content-Length value extracted from the headers.
-        """
-        # Read the HTTP request headers to extract the Content-Length
-        while True:
-            header_line = self.rfile.readline().decode().strip()
-            if not header_line:
-                # Empty line indicates the end of headers
-                break
-            if ':' not in header_line:
-                # Skip invalid header field lines
-                continue
-            header_name, header_value = header_line.split(":", 1)
-            if header_name == "Content-Length":
-                content_length = int(header_value)
-
-        return content_length
         
     def post_json(self, filename):
         """
@@ -468,75 +369,6 @@ def load_messages_from_file():
     with open("message.json", 'r') as storage_file:
         messages = json.load(storage_file)
     
-
-
-
-# All definitions are found here: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
-def find_content_type(filename):
-    """
-    Determine the Content-Type for a given file based on its filename.
-    
-    Args: filename(str): The name of the file.
-    
-    Returns:The corresponding type if found, or None if the extension is not recognized.
-    """
-    # Extract the file extension from the filename (e.g., ".html").
-    extension = os.path.splitext(filename)[1]
-
-    # Lookup the type in the content_type dictionary based on the extension.
-    return content_type.get(extension)
-
-def generate_error_html_body(error_code, message):
-    """
-    Generate an HTML body for displaying an error message.
-
-    Args:
-        error_code (int): The HTTP error code.
-        message (str): The error message.
-
-    Returns:
-        str: The HTML body as a string.
-    """
-    error_body = f"""
-        <html>
-        <body>
-            <h1>{error_code} {message}</h1>
-        </body>
-        </html>
-        """
-    return error_body
-
-def error_handling(error_code):
-    """
-    Generate an HTTP response for a given error code.
-
-    Args:
-        error_code (int): The HTTP error code.
-
-    Returns:
-        str: The complete HTTP response as a string, including headers and error message body.
-    """
-    if error_code == 404:
-        message = "Not Found"
-        content = "HTTP/1.1 404 Not Found \r\n"
-    elif error_code == 403:
-        message = "Forbidden"
-        content = "HTTP/1.1 403 Forbidden \r\n"
-    elif error_code == 500:
-        message = "Internal Server Error"
-        content = "HTTP/1.1 500 Internal Server Error \r\n"
-    else:
-        print("In the error handling function, something went wrong.")
-
-    # Create the error body
-    error_body = generate_error_html_body(error_code, message)
-
-    content += (
-        "Content-Type: text/html \r\n" +
-        "Content-Length: " + str(len(error_body)) +"\r\n\r\n"       # dont work if i do it like the others 
-        + error_body)
-        
-    return content
 
 
 

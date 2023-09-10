@@ -172,20 +172,31 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                     self.wfile.write(error_handling(404).encode())                
 
     def get_json(self, filename):
+        """
+        Handle a GET request for JSON data.
+
+        Args:
+            filename (str): The name of the JSON file to retrieve.
+
+        Returns:
+            None
+        """
+        if os.path.exists(filename):
+            response = '200 OK'
+        else:
+            print('There is not eny content yet')
+            response = '404 Not Found'
+
         # Convert the 'message' list to a JSON-formatted string
         json_data = json.dumps(messages)
 
         # Calculate the content length
         content_length = len(json_data)
 
-        # Determine the content type based on the filename
-        content_type = find_content_type(filename)
-
-        # Create the response header
-        response_header = self.create_responseheader('200 OK', "application/json", content_length)
-
-        # Write the response header and the JSON content to the client
+        # Make a response header and send the response header and JSON data to the client.
+        response_header = self.create_responseheader(response, "application/json", content_length)
         self.wfile.write(response_header + json_data.encode())
+
 
 
     def create_responseheader(self, response, content_type, content_lenght):
@@ -281,7 +292,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         # Generate a new message with a unique ID and the text from the JSON data.
         
-     # Check if there are available IDs; if so, reuse the smallest one
+        # Check if there are available IDs; if so, reuse the smallest one
         new_ID = 1  # Start with ID 1
 
         # Find the smallest unused ID by iterating through existing messages
@@ -340,57 +351,87 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
     def put_request(self, filename):
         """
-        PUT is used to update an existing resource.
-
+        Handle a PUT request to update a message with new content.
         """
-        # find the lenght 
-        content_lenght = 100        # TODO: må finne den faktiske lengden 
-        text = self.rfile.read(content_lenght).decode()
-        content_type = find_content_type(filename)
+        # Parse the JSON request body
+        content_length = self.find_length()
+        json_data = json.loads(self.rfile.read(content_length).decode())
 
-        with open(filename, "r") as f: 
-            # read the file and create a list with dictionaries
-            content = json.load(f)
+        # Find the ID in the request data
+        message_id = json_data.get("ID")
 
-        # Create a dictionary with the key and text 
-        dictionary = json.loads(text)
+        if message_id is None:
+            print(f"Message with ID {message_id} not found.")
+            # Return an error response if the ID is missing in the request
+            response_header = self.create_responseheader('404 Not Found', "application/json", 0)
+            self.wfile.write(response_header)
+            return
 
-        # Get the message for the corresponding ID
-        for ID in content: 
-            if ID['id'] == dictionary['id']:
-                ID['message'] = dictionary['message']
+        # Search for the message with the given ID
+        updated = False
+        for message in messages:
+            if message["ID"] == message_id:
+                # Update the message's text with the new content
+                message["Text"] = json_data["Text"]
+                updated = True
                 break
-        
-        with open(filename, "w") as f: 
-            # write the updated list to the file
-            f.write(json.dumps(content))
+
+        if updated:
+            # Respond with a success status code
+            response_header = self.create_responseheader('200 OK', "application/json", 0)
+            self.wfile.write(response_header)
+        else:
+            # If the message with the given ID doesn't exist, return a not found error
+            response_header = self.create_responseheader('404 Not Found', "application/json", 0)
+            self.wfile.write(response_header)
+        # Save the updated 'messages' list to the storage file
+        self.save_messages_to_file("message.json")
 
     def delete_request(self, filename):
-        """"
-        Delete the message and the related id
         """
-        # find the lenght
-        content_lenght = 100        # TODO: må finne den faktiske lengden
-        text = self.rfile.read(content_lenght).decode()
-        content_type = find_content_type(filename)
+        Handle a DELETE request to remove a message with a specific ID.
 
-        with open(filename, "r") as f:
-            # read the file and create a list with dictionaries
-            content = json.load(f)
-        
-        dictionary = json.load(text)
-        
-        for ID in content:
-            if ID['id'] == dictionary['id']:
-                content.remove(ID)
+        Args:
+            filename (str): The name of the file (not used in this context).
+
+        Returns:
+        None
+        """
+        # Read the request body to get the ID of the message to be deleted
+        content_length = self.find_length()
+        json_data = json.loads(self.rfile.read(content_length).decode())
+
+        # Find the ID in the request data
+        message_id = json_data.get("ID")
+
+        if message_id is None:
+            # Return an error response if the ID is missing in the request
+            response_header = self.create_responseheader('404 Not Found', "application/json", 0)
+            self.wfile.write(response_header)
+            return
+
+        # Search for the message with the given ID
+        deleted = False
+        for message in messages:
+            if message["ID"] == message_id:
+                # Delete the message and free its ID
+                messages.remove(message)
+                deleted = True
                 break
-        with open(filename, 'w') as f:
-            f.write(json.dumps(content))
 
-        response_header = self.create_responseheader('200 OK', content_type, content_lenght)
+        if deleted:
+            # Respond with a success status code
+            response_header = self.create_responseheader('200 OK', "application/json", 0)
+            self.wfile.write(response_header)
+        else:
+            # If the message with the given ID doesn't exist, return a not found error
+            print(f"Message with ID {message_id} not found.")
+            response_header = self.create_responseheader('404 Not Found', "application/json", 0)
+            self.wfile.write(response_header)
+        
+        # Save the updated 'messages' list to the storage file
+        self.save_messages_to_file(filename)
 
-        self.wfile.write(response_header)
-        self.wfile.close()
 
 
 # All definitions are found here: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
