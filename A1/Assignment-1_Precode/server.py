@@ -59,12 +59,13 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         request_line = self.rfile.readline().decode('utf-8').strip()    # Using utf-8 encoding in decode() ensures that bytes are correctly decoded. 
         requested_part = request_line.split()
 
-        print(requested_part)
-
         # Determine whether the request is legitimate and force the HTTP method to be uppercase and the URI to be lowercase. 
         if len(requested_part) >= 2:
             HTTP_method = requested_part[0].upper()
             URI = requested_part[1].lower()
+        else:
+            self.wfile.write(handle_error.error_handling(400).encode())
+            return
 
         if URI.endswith('.py') or URI.endswith("md"):
             self.wfile.write(handle_error.error_handling(403).encode())
@@ -72,65 +73,69 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         # Determine if the HTTP method is GET, POST, PUT, or DELETE and handle it accordingly.
         if HTTP_method == "GET":
-            # Respond to requests for specified resources.
-            if URI == "/" or URI == "/index.html" or URI == "/favicon.ico":
-                # If the URI is "/" set it to be "/index.html"
-                if  URI == "/":
-                    URI = "/index.html"
-
-                self.get_request(self.get_filname(URI), 'rb')
-
-            elif URI == "/test.txt":
-                filename = URI[1:]
-                self.get_test(filename, 'r')
-
-            elif URI.startswith('/message'):
-                print("got message")
-                # Handle GET request for messages
-                URI = "/message.json"
-                self.get_json(self.get_filname(URI))
-            
-            else:
-                print("ups error")
-                self.wfile.write(handle_error.error_handling(404).encode())
-        
+            self.handle_GET(URI)
         elif HTTP_method == 'POST':
-            # Handle POST request for creating a new text test.txt or message.json
-            if URI == "/test.txt":
-                self.post_request(self.get_filname(URI))
-
-            
-            elif URI.startswith('/message'):
-                URI = "/message.json"
-                # Handle POST request to create a new message
-                self.post_json(self.get_filname(URI)) 
-
-            else:
-                # Return a 403 Forbidden error for other POST requests
-                self.wfile.write(handle_error.error_handling(403).encode())
-
+            self.handle_POST(URI)
         elif HTTP_method == 'PUT':
-            if URI.startswith('/message'):
-                URI = "/message.json"
-                # Handle PUT request to update a message
-                self.put_request(self.get_filname(URI))
-            else:
-                # Return a 404 Not Found error
-                self.wfile.write(handle_error.error_handling(404).encode())
-
+            self.handle_PUT(URI)
         elif HTTP_method == 'DELETE':
-            if URI.startswith('/message'):
-                #  Handle DELETE request for deleting a message
-                URI = "/message.json"
-                self.delete_request(self.get_filname(URI))
-            else:
-                # Return a 404 Not Found error
-                self.wfile.write(handle_error.error_handling(404).encode())
+            self.handle_DELETE(URI)
+        else:
+            self.wfile.write(handle_error.error_handling(405).encode())     # Method Not Allowed
+    
+    def handle_GET(self, URI):
+        if URI == "/" or URI == "/index.html" or URI == "/favicon.ico":
+                # If the URI is "/" set it to be "/index.html"
+            if  URI == "/":
+                URI = "/index.html"
+
+            self.get_request(self.get_filname(URI), 'rb')
+
+        elif URI == "/test.txt":
+            filename = URI[1:]
+            self.get_test(filename, 'r')
+
+        elif URI.startswith('/message'):
+            print("got message")
+            # Handle GET request for messages
+            URI = "/message.json"
+            self.get_json(self.get_filname(URI))
+        
+        else:
+            self.wfile.write(handle_error.error_handling(404).encode())
+
+    def handle_POST(self, URI):
+        if URI == "/test.txt":
+            self.post_request(self.get_filname(URI))
+
+        
+        elif URI.startswith('/message'):
+            URI = "/message.json"
+            # Handle POST request to create a new message
+            self.post_json(self.get_filname(URI)) 
 
         else:
-            # Return a 405 Method Not Allowed error for unsupported HTTP methods
-            self.wfile.write(handle_error.error_handling(405).encode())
-    
+            # Return a 403 Forbidden error for other POST requests
+            self.wfile.write(handle_error.error_handling(403).encode())
+
+    def handle_PUT(self, URI):
+        if URI.startswith('/message'):
+            URI = "/message.json"
+            # Handle PUT request to update a message
+            self.put_request(self.get_filname(URI))
+        else:
+            # Return a 404 Not Found error
+            self.wfile.write(handle_error.error_handling(404).encode())
+
+    def handle_DELETE(self, URI):
+        if URI.startswith('/message'):
+            #  Handle DELETE request for deleting a message
+            URI = "/message.json"
+            self.delete_request(self.get_filname(URI))
+        else:
+            # Return a 404 Not Found error
+            self.wfile.write(handle_error.error_handling(404).encode())
+
     def get_request(self, filename, mode):
         """
         Handle a GET request for a specific file.
@@ -350,9 +355,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         filename = URI[1:]
         return filename
         
-
-
-
     def put_request(self, filename):
         """
         Handle a PUT request to update a message with new content.
@@ -365,10 +367,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         message_id = json_data.get("ID")
 
         if message_id is None:
-            print(f"Message with ID {message_id} not found.")
             # Return an error response if the ID is missing in the request
-            response_header = HTTPHandler.create_response_header('404 Not Found', "application/json", 0)
-            self.wfile.write(response_header)
+            self.send_error_response('404 Not Found', "application/json", 0)
             return
 
         # Search for the message with the given ID
@@ -381,15 +381,12 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 break
 
         if updated:
-            # Respond with a success status code
-            response_header = HTTPHandler.create_response_header('200 OK', "application/json", 0)
-            self.wfile.write(response_header)
+            # Respond with a success status code and save the updated messages
+            self.send_error_response('200 OK', "application/json", 0)
+            self.save_messages_to_file("message.json")
         else:
             # If the message with the given ID doesn't exist, return a not found error
-            response_header = HTTPHandler.create_response_header('404 Not Found', "application/json", 0)
-            self.wfile.write(response_header)
-        # Save the updated 'messages' list to the storage file
-        self.save_messages_to_file("message.json")
+            self.send_error_response('404 Not Found', "application/json", 0)
 
 
     def delete_request(self, filename):
@@ -411,6 +408,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         if message_id is None:
             # Return an error response if the ID is missing in the request
+            
             response_header = HTTPHandler.create_response_header('404 Not Found', "application/json", 0)
             self.wfile.write(response_header)
             return
@@ -436,6 +434,20 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         
         # Save the updated 'messages' list to the storage file
         self.save_messages_to_file(filename)
+
+    def send_error_response(self, status_code, type, content_length):
+        """
+        Send an error response with the specified status code and error message.
+
+        Args:
+            status_code (int): The HTTP status code for the error response.
+            content_length (int, optional): The length of the response body. If not provided, it will be calculated.
+
+        Returns:
+            None
+        """
+        response_header = HTTPHandler.create_response_header(status_code, type, content_length)
+        self.wfile.write(response_header)
 
 
 
