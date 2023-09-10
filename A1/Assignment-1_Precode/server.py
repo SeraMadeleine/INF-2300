@@ -240,9 +240,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             response_status = '201 Created'
             file_size = 0
 
-        # Print the response status for debugging purposes
-        print(response_status)
-
         # Read the request body with the specified Content-Length
         content_length = self.find_length()
         request_body = self.rfile.read(content_length).decode().strip()
