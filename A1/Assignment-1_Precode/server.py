@@ -3,6 +3,8 @@ import socketserver
 import os
 import json 
 import urllib.parse
+from error_handling import *
+from messag_handler import *
 
 
 """
@@ -12,6 +14,10 @@ Course: INF-2300 - Networking
 UiT - The Arctic University of Norway
 May 9th, 2019
 """
+
+# Instanses 
+handle_error = Error()
+
 
 # Messages are stored in a list. The messages are represented as dictionaries, containing keys such as "ID" and "Text"
 messages = []
@@ -51,7 +57,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
     tasks before handling a request. Is automatically called before handle().
     finish() - Does nothing by default, but is called after handle() to do any
     necessary clean up after a request is handled.
-    """
+    """        
     def handle(self):
         """
         This method is responsible for handling an http-request. You can, and should(!),
@@ -71,7 +77,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             URI = requested_part[1].lower()
 
         if URI.endswith('.py') or URI.endswith("md"):
-            self.wfile.write(error_handling(403).encode())
+            self.wfile.write(handle_error.error_handling(403).encode())
             return
 
         # Determine if the HTTP method is GET, POST, PUT, or DELETE and handle it accordingly.
@@ -98,7 +104,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             
             else:
                 print("ups error")
-                self.wfile.write(error_handling(404).encode())
+                self.wfile.write(handle_error.error_handling(404).encode())
         
         elif HTTP_method == 'POST':
             # Handle POST request for creating a new text test.txt or message.json
@@ -114,7 +120,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
             else:
                 # Return a 403 Forbidden error for other POST requests
-                self.wfile.write(error_handling(403).encode())
+                self.wfile.write(handle_error.error_handling(403).encode())
 
         elif HTTP_method == 'PUT':
             if URI.startswith('/message'):
@@ -123,7 +129,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 self.put_request(filename)
             else:
                 # Return a 404 Not Found error
-                self.wfile.write(error_handling(404).encode())
+                self.wfile.write(handle_error.error_handling(404).encode())
 
         elif HTTP_method == 'DELETE':
             if URI.startswith('/message'):
@@ -133,11 +139,11 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 self.delete_request(filename)
             else:
                 # Return a 404 Not Found error
-                self.wfile.write(error_handling(404).encode())
+                self.wfile.write(handle_error.error_handling(404).encode())
 
         else:
             # Return a 405 Method Not Allowed error for unsupported HTTP methods
-            self.wfile.write(error_handling(405).encode())
+            self.wfile.write(handle_error.error_handling(405).encode())
     
     def get_request(self, filename, mode):
         """
@@ -153,7 +159,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         if not os.path.exists(filename):
             print('not found ')
-            self.wfile.write(error_handling(404).encode())
+            self.wfile.write(handle_error.error_handling(404).encode())
 
         # Open the file and store its content for writing later 
         with open(filename, mode) as f: 
@@ -202,7 +208,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                     self.wfile.write(line.encode())     # encode() = bytes 
         else:
             # Send a 404 Not Found response if the provided file does not exist.
-            self.wfile.write(error_handling(404).encode())                
+            self.wfile.write(handle_error.error_handling(404).encode())                
 
     def get_json(self, filename):
         """
@@ -483,60 +489,6 @@ def find_content_type(filename):
     # Lookup the type in the content_type dictionary based on the extension.
     return content_type.get(extension)
 
-def generate_error_html_body(error_code, message):
-    """
-    Generate an HTML body for displaying an error message.
-
-    Args:
-        error_code (int): The HTTP error code.
-        message (str): The error message.
-
-    Returns:
-        str: The HTML body as a string.
-    """
-    error_body = f"""
-        <html>
-        <body>
-            <h1>{error_code} {message}</h1>
-        </body>
-        </html>
-        """
-    return error_body
-
-def error_handling(error_code):
-    """
-    Generate an HTTP response for a given error code.
-
-    Args:
-        error_code (int): The HTTP error code.
-
-    Returns:
-        str: The complete HTTP response as a string, including headers and error message body.
-    """
-    if error_code == 404:
-        message = "Not Found"
-        content = "HTTP/1.1 404 Not Found \r\n"
-    elif error_code == 403:
-        message = "Forbidden"
-        content = "HTTP/1.1 403 Forbidden \r\n"
-    elif error_code == 405:
-        message = "Method Not Allowed"
-        content = "HTTP/1.1 405 Method Not Allowed \r\n"
-    elif error_code == 500:
-        message = "Internal Server Error"
-        content = "HTTP/1.1 500 Internal Server Error \r\n"
-    else:
-        print("In the error handling function, something went wrong.")
-
-    # Create the error body
-    error_body = generate_error_html_body(error_code, message)
-
-    content += (
-        "Content-Type: text/html \r\n" +
-        "Content-Length: " + str(len(error_body)) +"\r\n\r\n"       # dont work if i do it like the others 
-        + error_body)
-        
-    return content
 
 def load_messages_from_file():
     """
