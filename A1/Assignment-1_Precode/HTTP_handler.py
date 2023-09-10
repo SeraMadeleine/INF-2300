@@ -53,3 +53,5 @@ class HTTPHandler:
 
         # Lookup the type in the CONTENT_TYPE dictionary based on the extension.
         return HTTPHandler.CONTENT_TYPE.get(extension)
+
+
