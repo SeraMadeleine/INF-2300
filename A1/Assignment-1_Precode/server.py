@@ -93,7 +93,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             elif URI.startswith('/message'):
                 print("got message")
                 # Handle GET request for messages
-                filename = URI[1:]
+                filename = 'message.json'
                 self.get_json(filename)
             
             else:
@@ -535,8 +535,10 @@ def load_messages_from_file():
     """
     Load messages from a storage file (e.g., message.json) into the 'messages' list.
     """
-    with open("message.json", 'r') as storage_file:
-        messages = json.load(storage_file)
+    global messages
+    if os.path.exists("message.json"):
+        with open("message.json", 'r') as storage_file:
+            messages = json.load(storage_file)
     
 
 
@@ -545,6 +547,5 @@ if __name__ == "__main__":
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer((HOST, PORT), MyTCPHandler) as server:
         print("Serving at: http://{}:{}".format(HOST, PORT))
-        if os.path.exists("message.json"):
-            load_messages_from_file()             # Added so that the message from the json file may be loaded and maintained even if the server goes down.
+        load_messages_from_file()             # Added so that the message from the json file may be loaded and maintained even if the server goes down.
         server.serve_forever()
