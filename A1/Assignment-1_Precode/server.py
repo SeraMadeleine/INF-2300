@@ -84,16 +84,13 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             self.wfile.write(handle_error.error_handling(405).encode())     # Method Not Allowed
     
     def handle_GET(self, URI):
-        if URI == "/" or URI == "/index.html" or URI == "/favicon.ico":
+        if URI == "/" or URI == "/index.html" or URI == "/favicon.ico" or URI == "/test.txt":
                 # If the URI is "/" set it to be "/index.html"
             if  URI == "/":
                 URI = "/index.html"
 
+            # Handle the GET request for the correct uri
             self.get_request(self.get_filname(URI), 'rb')
-
-        elif URI == "/test.txt":
-            filename = URI[1:]
-            self.get_test(filename, 'r')
 
         elif URI.startswith('/message'):
             print("got message")
@@ -121,10 +118,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
     def handle_PUT(self, URI):
         if URI.startswith('/message'):
             URI = "/message.json"
-            # Handle PUT request to update a message
             self.put_request(self.get_filname(URI))
         else:
-            # Return a 404 Not Found error
             self.wfile.write(handle_error.error_handling(404).encode())
 
     def handle_DELETE(self, URI):
@@ -149,8 +144,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         """     
 
         if not os.path.exists(filename):
-            print('not found ')
             self.wfile.write(handle_error.error_handling(404).encode())
+            return
 
         # Open the file and store its content for writing later 
         with open(filename, mode) as f: 
@@ -165,41 +160,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         # Write the response header and the content of the file
         self.wfile.write(response_header + content)
-
-    def get_test(self, filename, mode):
-        """
-        Handle a GET request for a specific test file.
-
-        Args:
-            filename (str): The name of the file to retrieve.
-            mode (str): The mode in which to open the file ('r' for text, 'rb' for binary).
-
-        Returns:
-            None
-        """
-        if os.path.exists(filename):
-            # __file__.replace(fila du er på (server.py), det dub vil replace med (test))
-            # If the file provided exists on the server
-            with open(filename, mode) as f:     
-                content = f.read()
-
-                # TODO: regne ut lengden og fremdeles få den til å skrive ut alt 
-                # Determine the content type of the file and construct an HTTP response header
-                content_type = HTTPHandler.find_content_type(filename)
-                response_header = (
-                    b'HTTP/1.1 200 OK\r\n'+
-                    f'Content-Type: {content_type}\r\n\r\n'.encode() 
-                )
-
-                # Send the response header to the client
-                self.wfile.write(response_header)
-
-                # Send the file content to the client line by line
-                for line in content: 
-                    self.wfile.write(line.encode())     # encode() = bytes 
-        else:
-            # Send a 404 Not Found response if the provided file does not exist.
-            self.wfile.write(handle_error.error_handling(404).encode())                
 
     def get_json(self, filename):
         """
