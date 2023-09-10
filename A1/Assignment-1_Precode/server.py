@@ -4,7 +4,7 @@ import os
 import json 
 import urllib.parse
 from error_handling import *
-from messag_handler import *
+from HTTP_handler import HTTPHandler
 
 
 """
@@ -15,23 +15,18 @@ UiT - The Arctic University of Norway
 May 9th, 2019
 """
 
-# Instanses 
-handle_error = Error()
+# Constants
+INDEX_HTML = "/index.html"
+FAVICON_ICO = "/favicon.ico"
+TEST_TXT = "/test.txt"
+MESSAGE_JSON = "/message.json"
 
+# Instans
+handle_error = Error()
 
 # Messages are stored in a list. The messages are represented as dictionaries, containing keys such as "ID" and "Text"
 messages = []
 
-# Dictionary that maps the file to the corresponding type
-content_type = {
-    ".html": "text/html",
-    ".css": "text/css",
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".ico": "image/icon",
-    ".txt": "text/plain",
-    ".json": "application/json", 
-}
 
 class MyTCPHandler(socketserver.StreamRequestHandler):
     """
@@ -166,11 +161,11 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             content = f.read()
         
         # Find the content type and length 
-        content_type = find_content_type(filename)
+        content_type = HTTPHandler.find_content_type(filename)
         content_lenght = len(content)
 
         # Create the response header 
-        response_header = self.create_responseheader('200 OK', content_type, content_lenght)
+        response_header = HTTPHandler.create_response_header('200 OK', content_type, content_lenght)
 
         # Write the response header and the content of the file
         self.wfile.write(response_header + content)
@@ -194,7 +189,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
                 # TODO: regne ut lengden og fremdeles få den til å skrive ut alt 
                 # Determine the content type of the file and construct an HTTP response header
-                content_type = find_content_type(filename)
+                content_type = HTTPHandler.find_content_type(filename)
                 response_header = (
                     b'HTTP/1.1 200 OK\r\n'+
                     f'Content-Type: {content_type}\r\n\r\n'.encode() 
@@ -233,30 +228,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         content_length = len(json_data)
 
         # Make a response header and send the response header and JSON data to the client.
-        response_header = self.create_responseheader(response, "application/json", content_length)
+        response_header = HTTPHandler.create_response_header(response, "application/json", content_length)
         self.wfile.write(response_header + json_data.encode())
-
-
-
-    def create_responseheader(self, response, content_type, content_lenght):
-        """
-        Create an HTTP response header.
-
-        Args:
-            response (str): The HTTP response status (e.g., '200 OK', '404 Not Found').
-            content_type (str): The content type of the response (e.g., 'application/json').
-            content_length (int): The length of the response content.
-
-        Returns:
-            bytes: The HTTP response header as bytes.
-        """
-        response_header = (
-            f'HTTP/1.1 {response}\r\n'.encode()+
-            f'Content-Length: {content_lenght}\r\n'.encode()+ 
-            f'Content-Type: {content_type}\r\n\r\n'.encode()
-        )
-
-        return response_header
 
     def post_request(self, filename):
         """
@@ -296,8 +269,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             content = f.readlines()
 
         # Determine the content type based on the file extension
-        content_type = find_content_type(filename)
-        response_header = self.create_responseheader(response_status, content_type, file_size)
+        content_type = HTTPHandler.find_content_type(filename)
+        response_header = HTTPHandler.create_response_header(response_status, content_type, file_size)
         self.wfile.write(response_header)
 
         # Write the file content to the client
@@ -365,7 +338,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         content_length = len(response_content)
         
         # Create an HTTP response header
-        response_header = self.create_responseheader(response_status, "application/json", content_length)
+        response_header = HTTPHandler.create_response_header(response_status, "application/json", content_length)
 
         # Append the new message to the 'messages' list
         messages.append(new_message)
@@ -402,7 +375,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         if message_id is None:
             print(f"Message with ID {message_id} not found.")
             # Return an error response if the ID is missing in the request
-            response_header = self.create_responseheader('404 Not Found', "application/json", 0)
+            response_header = HTTPHandler.create_response_header('404 Not Found', "application/json", 0)
             self.wfile.write(response_header)
             return
 
@@ -417,11 +390,11 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         if updated:
             # Respond with a success status code
-            response_header = self.create_responseheader('200 OK', "application/json", 0)
+            response_header = HTTPHandler.create_response_header('200 OK', "application/json", 0)
             self.wfile.write(response_header)
         else:
             # If the message with the given ID doesn't exist, return a not found error
-            response_header = self.create_responseheader('404 Not Found', "application/json", 0)
+            response_header = HTTPHandler.create_response_header('404 Not Found', "application/json", 0)
             self.wfile.write(response_header)
         # Save the updated 'messages' list to the storage file
         self.save_messages_to_file("message.json")
@@ -446,7 +419,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         if message_id is None:
             # Return an error response if the ID is missing in the request
-            response_header = self.create_responseheader('404 Not Found', "application/json", 0)
+            response_header = HTTPHandler.create_response_header('404 Not Found', "application/json", 0)
             self.wfile.write(response_header)
             return
 
@@ -461,33 +434,17 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         if deleted:
             # Respond with a success status code
-            response_header = self.create_responseheader('200 OK', "application/json", 0)
+            response_header = HTTPHandler.create_response_header('200 OK', "application/json", 0)
             self.wfile.write(response_header)
         else:
             # If the message with the given ID doesn't exist, return a not found error
             print(f"Message with ID {message_id} not found.")
-            response_header = self.create_responseheader('404 Not Found', "application/json", 0)
+            response_header = HTTPHandler.create_response_header('404 Not Found', "application/json", 0)
             self.wfile.write(response_header)
         
         # Save the updated 'messages' list to the storage file
         self.save_messages_to_file(filename)
 
-
-
-# All definitions are found here: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
-def find_content_type(filename):
-    """
-    Determine the Content-Type for a given file based on its filename.
-    
-    Args: filename(str): The name of the file.
-    
-    Returns:The corresponding type if found, or None if the extension is not recognized.
-    """
-    # Extract the file extension from the filename (e.g., ".html").
-    extension = os.path.splitext(filename)[1]
-
-    # Lookup the type in the content_type dictionary based on the extension.
-    return content_type.get(extension)
 
 
 def load_messages_from_file():

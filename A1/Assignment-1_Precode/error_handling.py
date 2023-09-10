@@ -15,7 +15,6 @@ class Error:
         error_handling(error_code):
             Generate an HTTP response for a given error code, including headers and error message body.
     """
-    
     def generate_error_html_body(self, error_code, message):
         """
         Generate an HTML body for displaying an error message.
@@ -36,6 +35,7 @@ class Error:
             """
         return error_body
 
+    
     def error_handling(self, error_code):
         """
         Generate an HTTP response for a given error code.
