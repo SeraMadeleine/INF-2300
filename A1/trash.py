@@ -295,6 +295,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         # Save the updated 'messages' list to the storage file
         self.save_messages_to_file(filename)
 
+   
     def find_length(self):
         """
         Extract the Content-Length from the HTTP request headers.
@@ -316,7 +317,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 content_length = int(header_value)
 
         return content_length
-        
+
     def post_json(self, filename):
         """
         Handle a POST request to append JSON data to a file and respond with JSON data.
@@ -342,7 +343,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         # Generate a new message with a unique ID and the text from the JSON data.
         
-         # Check if there are available IDs; if so, reuse the smallest one
+        # Check if there are available IDs; if so, reuse the smallest one
         new_ID = 1  # Start with ID 1
 
         # Find the smallest unused ID by iterating through existing messages
@@ -362,13 +363,22 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         messages.append(new_message)
 
         # Convert the new message to JSON and send it as the response
-        response = json.dumps(new_message, indent=4)
         self.wfile.write(response_header)  # Write the response header
 
         # Write the formatted JSON content to the response
         self.wfile.write(response_content.encode())
         # Save the updated 'messages' list to the storage file
         self.save_messages_to_file(filename)
+
+    def save_messages_to_file(self, filename):
+        """
+        Save messages from the 'messages' list into a storage file (e.g., message.json).
+        """
+        with open(filename, 'w') as storage_file:
+            json.dump(messages, storage_file, indent=4)
+
+
+
         
     def put_request(self):
         """
@@ -407,6 +417,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             self.wfile.write(response_header)
         # Save the updated 'messages' list to the storage file
         self.save_messages_to_file("message.json")
+    
 
     def delete_request(self, filename):
         """
@@ -452,22 +463,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         
         # Save the updated 'messages' list to the storage file
         self.save_messages_to_file(filename)
-
-
-    def save_messages_to_file(self, filename):
-        """
-        Save messages from the 'messages' list into a storage file (e.g., message.json).
-        """
-        with open(filename, 'w') as storage_file:
-            json.dump(messages, storage_file, indent=4)
-
-def load_messages_from_file():
-    """
-    Load messages from a storage file (e.g., message.json) into the 'messages' list.
-    """
-    with open("message.json", 'r') as storage_file:
-        messages = json.load(storage_file)
-    
 
 
 
@@ -538,6 +533,13 @@ def error_handling(error_code):
         
     return content
 
+def load_messages_from_file():
+    """
+    Load messages from a storage file (e.g., message.json) into the 'messages' list.
+    """
+    with open("message.json", 'r') as storage_file:
+        messages = json.load(storage_file)
+    
 
 
 if __name__ == "__main__":

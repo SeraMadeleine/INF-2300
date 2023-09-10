@@ -229,7 +229,17 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
 
     def create_responseheader(self, response, content_type, content_lenght):
-        # Create the response header 
+        """
+        Create an HTTP response header.
+
+        Args:
+            response (str): The HTTP response status (e.g., '200 OK', '404 Not Found').
+            content_type (str): The content type of the response (e.g., 'application/json').
+            content_length (int): The length of the response content.
+
+        Returns:
+            bytes: The HTTP response header as bytes.
+        """
         response_header = (
             f'HTTP/1.1 {response}\r\n'.encode()+
             f'Content-Length: {content_lenght}\r\n'.encode()+ 
@@ -239,21 +249,33 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         return response_header
 
     def post_request(self, filename):
-    # Determine the response status based on whether the file exists or is created.
+        """
+        Handle a POST request for a specific file.
+
+        Args:
+            filename (str): The name of the file to which the data will be appended.
+
+        Returns:
+            None
+        """        
+        # Determine the response status based on whether or not the file exists.
         if os.path.exists(filename): 
             response_status = '200 OK'
+            file_size = os.path.getsize(filename)
         else: 
             response_status = '201 Created'
+            file_size = 0
 
         # Print the response status for debugging purposes
         print(response_status)
 
-        content_length = self.find_lenght()
         # Read the request body with the specified Content-Length
+        content_length = self.find_length()
         request_body = self.rfile.read(content_length).decode().strip()
 
-        # Unquote the body to handle special characters (e.g., æ, ø, å)
+        # Unquote the body to handle special characters (æ, ø, å) and update the size to incorporate the new message. 
         body = urllib.parse.unquote(request_body)[5:]  # Start at 5 to skip "text=" prefix
+        file_size += len(body)
 
         # Append the body to the file
         with open(filename, 'ab') as f:
@@ -265,22 +287,20 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         # Determine the content type based on the file extension
         content_type = find_content_type(filename)
-
-        # Create the HTTP response header
-        response_header = (
-            f'HTTP/1.1 {response_status}\r\n'.encode() +
-            # f'Content-Length: {content_length}\r\n'.encode() +
-            f'Content-Type: {content_type}\r\n\r\n'.encode() 
-        )
-
-        # Write the response header to the client
+        response_header = self.create_responseheader(response_status, content_type, file_size)
         self.wfile.write(response_header)
 
         # Write the file content to the client
         for line in content: 
             self.wfile.write(line)  # Write each line of content
 
-    def find_lenght(self):
+    def find_length(self):
+        """
+        Extract the Content-Length from the HTTP request headers.
+
+        Returns:
+            int: The Content-Length value extracted from the headers.
+        """
         # Read the HTTP request headers to extract the Content-Length
         while True:
             header_line = self.rfile.readline().decode().strip()
@@ -356,27 +376,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             json.dump(messages, storage_file, indent=4)  
 
 
-    def find_length(self):
-        """
-        Extract the Content-Length from the HTTP request headers.
 
-        Returns:
-            int: The Content-Length value extracted from the headers.
-        """
-        # Read the HTTP request headers to extract the Content-Length
-        while True:
-            header_line = self.rfile.readline().decode().strip()
-            if not header_line:
-                # Empty line indicates the end of headers
-                break
-            if ':' not in header_line:
-                # Skip invalid header field lines
-                continue
-            header_name, header_value = header_line.split(":", 1)
-            if header_name == "Content-Length":
-                content_length = int(header_value)
-
-        return content_length
 
     def put_request(self, filename):
         """
@@ -415,6 +415,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             self.wfile.write(response_header)
         # Save the updated 'messages' list to the storage file
         self.save_messages_to_file("message.json")
+
 
     def delete_request(self, filename):
         """
@@ -478,8 +479,17 @@ def find_content_type(filename):
     # Lookup the type in the content_type dictionary based on the extension.
     return content_type.get(extension)
 
-# Emilie helpt me with the htlm code 
 def generate_error_html_body(error_code, message):
+    """
+    Generate an HTML body for displaying an error message.
+
+    Args:
+        error_code (int): The HTTP error code.
+        message (str): The error message.
+
+    Returns:
+        str: The HTML body as a string.
+    """
     error_body = f"""
         <html>
         <body>
@@ -490,6 +500,15 @@ def generate_error_html_body(error_code, message):
     return error_body
 
 def error_handling(error_code):
+    """
+    Generate an HTTP response for a given error code.
+
+    Args:
+        error_code (int): The HTTP error code.
+
+    Returns:
+        str: The complete HTTP response as a string, including headers and error message body.
+    """
     if error_code == 404:
         message = "Not Found"
         content = "HTTP/1.1 404 Not Found \r\n"
@@ -519,6 +538,7 @@ def load_messages_from_file():
     with open("message.json", 'r') as storage_file:
         messages = json.load(storage_file)
     
+
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
