@@ -173,7 +173,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         """
         if not os.path.exists(filename):
             # Send a 404 Not Found response if the file does not exist
-            self.wfile.write(handle_error.error_handling(404).encode())
+            self.wfile.write(HTTPHandler.create_response_header('404 Not Found', "application/json", 0))
             return
 
         # Convert the 'message' list to a JSON-formatted string
@@ -234,7 +234,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         for line in content: 
             self.wfile.write(line)  # Write each line of content
 
-        
     def post_json(self, filename):
         """
         Handle a POST request to append JSON data to a file and respond with JSON data.
@@ -248,7 +247,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         # Determine the response status based on whether or not the file exists.
         response_status = '200 OK' if os.path.exists(filename) else '201 Created'
-
 
         content_length = self.find_length()
 
@@ -295,7 +293,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         if message_id is None:
             # Return an error response if the ID is missing in the request
-            self.send_error_response('404 Not Found', "application/json", 0)
+            self.wfile.write(HTTPHandler.create_response_header('404 Not Found', "application/json", 0))
             return
 
         # Search for the message with the given ID
@@ -309,12 +307,11 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         if updated:
             # Respond with a success status code and save the updated messages
-            self.send_error_response('200 OK', "application/json", 0)
+            self.wfile.write(HTTPHandler.create_response_header('200 OK', "application/json", 0))
             self.save_messages_to_file("message.json")
         else:
             # If the message with the given ID doesn't exist, return a not found error
-            self.send_error_response('404 Not Found', "application/json", 0)
-
+            self.wfile.write(HTTPHandler.create_response_header('404 Not Found', "application/json", 0))
 
     def delete_request(self, filename):
         """
@@ -333,11 +330,9 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
         # Find the ID in the request data
         message_id = json_data.get("ID")
 
+        # Return an error response if the ID is missing in the request
         if message_id is None:
-            # Return an error response if the ID is missing in the request
-            
-            response_header = HTTPHandler.create_response_header('404 Not Found', "application/json", 0)
-            self.wfile.write(response_header)
+            self.wfile.write(HTTPHandler.create_response_header('404 Not Found', "application/json", 0))
             return
 
         # Search for the message with the given ID
@@ -351,30 +346,14 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         if deleted:
             # Respond with a success status code
-            response_header = HTTPHandler.create_response_header('200 OK', "application/json", 0)
-            self.wfile.write(response_header)
+            self.wfile.write(HTTPHandler.create_response_header('200 OK', "application/json", 0))
         else:
             # If the message with the given ID doesn't exist, return a not found error
             print(f"Message with ID {message_id} not found.")
-            response_header = HTTPHandler.create_response_header('404 Not Found', "application/json", 0)
-            self.wfile.write(response_header)
+            self.wfile.write(HTTPHandler.create_response_header('404 Not Found', "application/json", 0))
         
         # Save the updated 'messages' list to the storage file
         self.save_messages_to_file(filename)
-
-    def send_error_response(self, status_code, type, content_length):
-        """
-        Send an error response with the specified status code and error message.
-
-        Args:
-            status_code (int): The HTTP status code for the error response.
-            content_length (int, optional): The length of the response body. If not provided, it will be calculated.
-
-        Returns:
-            None
-        """
-        response_header = HTTPHandler.create_response_header(status_code, type, content_length)
-        self.wfile.write(response_header)
     
     def save_messages_to_file(self, filename):
         """
