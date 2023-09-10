@@ -70,14 +70,14 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             HTTP_method = requested_part[0].upper()
             URI = requested_part[1].lower()
 
+        if URI.endswith('.py') or URI.endswith("md"):
+            self.wfile.write(error_handling(403).encode())
+            return
+
         # Determine if the HTTP method is GET, POST, PUT, or DELETE and handle it accordingly.
         if HTTP_method == "GET":
-            # Verify that the file type is legal;.py and.md should not be allowed.
-            if URI.endswith('.py') or URI.endswith("md"):
-                self.wfile.write(error_handling(403).encode())
-
             # Respond to requests for specified resources.
-            elif URI == "/" or URI == "/index.html" or URI == "/favicon.ico":
+            if URI == "/" or URI == "/index.html" or URI == "/favicon.ico":
                 # If the URI is "/" set it to be "/index.html"
                 if  URI == "/":
                     URI = "/index.html"
@@ -99,8 +99,7 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             else:
                 print("ups error")
                 self.wfile.write(error_handling(404).encode())
-                
-
+        
         elif HTTP_method == 'POST':
             # Handle POST request for creating a new text test.txt or message.json
             if URI == "/test.txt":
@@ -137,8 +136,8 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
                 self.wfile.write(error_handling(404).encode())
 
         else:
-            # Return a 404 Not Found error for unsupported HTTP methods
-            self.wfile.write(error_handling(404).encode())
+            # Return a 405 Method Not Allowed error for unsupported HTTP methods
+            self.wfile.write(error_handling(405).encode())
     
     def get_request(self, filename, mode):
         """
@@ -150,7 +149,12 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
 
         Returns:
             None
-        """
+        """     
+
+        if not os.path.exists(filename):
+            print('not found ')
+            self.wfile.write(error_handling(404).encode())
+
         # Open the file and store its content for writing later 
         with open(filename, mode) as f: 
             content = f.read()
@@ -515,6 +519,9 @@ def error_handling(error_code):
     elif error_code == 403:
         message = "Forbidden"
         content = "HTTP/1.1 403 Forbidden \r\n"
+    elif error_code == 405:
+        message = "Method Not Allowed"
+        content = "HTTP/1.1 405 Method Not Allowed \r\n"
     elif error_code == 500:
         message = "Internal Server Error"
         content = "HTTP/1.1 500 Internal Server Error \r\n"
