@@ -1,18 +1,18 @@
 [
     {
-        "ID": 1,
-        "Text": "etter_delete"
-    },
-    {
         "ID": 2,
-        "Text": ""
+        "Text": "g\u00e5r det bra med deg?"
     },
     {
         "ID": 3,
-        "Text": ""
+        "Text": "Nei du det g\u00e5r ikke s\u00e5 bra om dageno"
+    },
+    {
+        "ID": 1,
+        "Text": "Det g\u00e5r bra med meg"
     },
     {
         "ID": 4,
-        "Text": "hei \u00e5\u00a8deg "
+        "Text": "Det g\u00e5r bra med meg"
     }
 ]
