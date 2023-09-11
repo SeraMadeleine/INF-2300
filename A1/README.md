@@ -1,7 +1,5 @@
 
 ## Running the Program
-
-
 1. Open a terminal and navigate to the project directory.
 
 2. Start the server by running the following command:

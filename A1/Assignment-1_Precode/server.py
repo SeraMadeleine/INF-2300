@@ -93,7 +93,6 @@ class MyTCPHandler(socketserver.StreamRequestHandler):
             self.get_request(self.get_filname(URI), 'rb')
 
         elif URI.startswith('/message'):
-            print("got message")
             # Handle GET request for messages
             URI = "/message.json"
             self.get_json(self.get_filname(URI))
