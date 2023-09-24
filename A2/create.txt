@@ -1,0 +1,8 @@
+kilde:
+https://react.dev/learn/start-a-new-react-project
+https://www.geeksforgeeks.org/create-todo-app-using-reactjs/ 
+
+
+
+## Production-grade React frameworks 
+npx create-next-app
