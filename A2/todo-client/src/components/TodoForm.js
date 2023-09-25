@@ -7,11 +7,9 @@ function TodoForm(props) {
         setInput(e.target.value);
     };
 
-    // Prevent form submission from refreshing the page
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        // Call the onSubmit function passed as a prop
         props.onSubmit({
             id: Math.floor(Math.random() * 10000),
             text: input,
