@@ -41,7 +41,7 @@ class NetworkLayer:
             # seconds have passed, from a separate thread. So other packets
             # will arrive in the meantime.
             timer_object = Timer(
-                DELAY_AMOUNT, self.transport_layer.from_network, (packet,)
+                DELAY_AMOUNT, self.recipient.receive, (packet,)           # måtte ende her 
             )
             timer_object.start()
             return
