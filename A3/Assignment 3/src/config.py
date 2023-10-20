@@ -28,3 +28,6 @@ CORRUPT_CHANCE = 0.0
 DELAY_CHANCE = 0.0
 # Delay in seconds
 DELAY_AMOUNT = 0.5
+
+# Window size 
+WINDOW_SIZE = 4
