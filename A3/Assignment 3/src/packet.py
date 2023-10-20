@@ -11,25 +11,12 @@ class Packet:
         self.ack = False            # True when sending response to Alice 
         self.seqnr = 0              # Set when packet is sendt 
         self.retry_count = 0        # Number of times a packet has been retransmitted or resent
-        self.payload_type = "data"  # Payload type: "data" or "ack"
         self.status = "created"     # Status attribute to track packet status
+        self.ack = False
 
 
     
     # Extend me!
-    def mark_packet(self, mark):
-        """
-        Identify whether a packet is a data packet or an ACK packet based on the 'mark' parameter.
-
-        Args:
-            mark (str): The mark to set the packet type. Use "ack" for acknowledgment packets or "data" for data packets.
-        """
-        if mark == "ack":
-            self.ack = True
-            self.payload_type = "ack"
-        elif mark == "data":
-            self.ack = False
-            self.payload_type = "data"
 
     def increment_retry_count(self):
         """Increment the retry count to track the number of retransmissions."""
