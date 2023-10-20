@@ -56,8 +56,8 @@ class TransportLayer:
 
         # self.debugger(f"window: {self.packets_window}")
 
-        packet = Packet(binary_data)
-        while len(self.packets_window) <= self.window_size and self.seqnr <= PACKET_NUM:
+        if len(self.packets_window) <= self.window_size and self.seqnr <= PACKET_NUM:
+            packet = Packet(binary_data)
             # Create a packet with the binary data and assign a sequence number.
 
             # Set seqnr for packet and self
@@ -72,8 +72,7 @@ class TransportLayer:
             # if self.window_start == packet.seqnr:
                 # self.reset_timer(self.retransmit_packets)
         
-        
-        self.network_layer.send(packet)
+            self.network_layer.send(packet)
 
 
     def from_network(self, packet):
@@ -86,7 +85,7 @@ class TransportLayer:
         if packet.payload_type == "ack":
             # Handling acknowledgment packets
             self.handle_ack_packet(packet)
-        elif packet.payload_type == "data":
+        elif packet.payload_type == "data" and packet.seqnr <= PACKET_NUM:
             # Handling data packets.
             self.handle_data_packet(packet)
         
