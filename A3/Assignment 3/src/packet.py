@@ -9,7 +9,7 @@ class Packet:
         self.data = binary_data
         self.checksum = 0 
         self.ack = False            # True when sending response to Alice 
-        self.seqnr = None           # Set when packet is sendt 
+        self.seqnr = 0           # Set when packet is sendt 
         self.retry_count = 0        # Number of times a packet has been retransmitted or resent
         self.payload_type = "data"  # Payload type: "data" or "ack"
         self.status = "created"     # Status attribute to track packet status
