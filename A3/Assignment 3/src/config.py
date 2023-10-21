@@ -20,14 +20,14 @@ RANDOM_SEED = 84737869  # I love you! :)
 RANDOM_RUN = False
 
 # The chance that each packet is dropped
-DROP_CHANCE = 0.1
+DROP_CHANCE = 0.0
 # The chance that the data in a packet is changed
-CORRUPT_CHANCE = 0.0
+CORRUPT_CHANCE = 0.1
 
 # The chance that the packet is delayed
-DELAY_CHANCE = 0.1
+DELAY_CHANCE = 0.0
 # Delay in seconds
 DELAY_AMOUNT = 0.5
 
 # Window size 
-WINDOW_SIZE = 2
+WINDOW_SIZE = 11
