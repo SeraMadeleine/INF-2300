@@ -11,18 +11,20 @@ class TransportLayer:
     and must make sure it arrives on the other side unchanged and in order.
     """
 
-
     def __init__(self):
         self.timer = None
-        self.timeout = 0.4              # Seconds
-        self.window_size = WINDOW_SIZE  # Number of packets that can be in flight simultaneously
-        self.packets_window = []        # Buffer for sending packets
-        self.window_start = 0           # Start positions within the list of packets
-        self.window_end = 0             # End positions within the list of packets
-        self.seqnr = 0                  # Sequence number, increm for all pacets 
-        self.expected_seqnr = 0         # The expected data sequence number
-        self.expected_ack = 0           # The last acknowledged sequence number
-        self.debug = True               # Set to false if you do not want debug prints 
+        self.timeout = 0.4                # Seconds
+        self.window_size = WINDOW_SIZE    # Number of packets that can be in flight simultaneously
+        self.packets_window = []          # Buffer for sending packets
+        self.window_start = 0             # Start positions within the list of packets
+        self.window_end = 0               # End positions within the list of packets
+        self.seqnr = 0                    # Sequence number, increm for all pacets 
+        self.expected_seqnr = 0           # The expected data sequence number
+        self.expected_ack = 0             # The last acknowledged sequence number
+        self.debug = True                 # Set to false if you do not want debug prints 
+        self.unacknowledged_packets = {}  # Store unacknowledged packets and their timer
+        
+
 
 
     def debugger(self, message):
@@ -57,7 +59,7 @@ class TransportLayer:
 
         # self.debugger(f"window: {self.packets_window}")
 
-        if len(self.packets_window) <= self.window_size and self.seqnr <= PACKET_NUM:
+        if len(self.packets_window) < self.window_size and self.seqnr <= PACKET_NUM:
             # Create a packet with the binary data and assign a sequence number.
             packet = Packet(binary_data)
 
@@ -69,13 +71,12 @@ class TransportLayer:
             self.packets_window.append(packet)
             self.debugger(f"window: {self.packets_window}")
 
-            # self.network_layer.send(packet)
-            # if self.window_start == packet.seqnr:
-                # self.reset_timer(self.retransmit_packets)
-        
         
             self.network_layer.send(packet)
 
+            # if self.window_start == packet.seqnr:
+            #     self.reset_timer(self.handle_timeout)
+        
 
     def from_network(self, packet):
         """ 
@@ -86,7 +87,6 @@ class TransportLayer:
         
         if packet.ack:
             # Handling acknowledgment packets
-            self.debugger(f"Received ACK for packet {packet.seqnr}. \n")
             self.handle_ack_packet(packet)
         else:
             # Handling data packets.
@@ -101,30 +101,28 @@ class TransportLayer:
         Args:
             packet (Packet): The received packet.
         """
-        self.debugger("Recived data packet \n")
+        self.debugger(f"Recived data packet with seqnr: {packet.seqnr}, expected:  {self.expected_seqnr} \n")
         
         
         if packet.seqnr == self.expected_seqnr:
             # Send ACK for the received packet using self.network_layer.send.
             packet.ack = True
-
-            self.debugger(f"packet.seqnr: {packet.seqnr} \n")
-            self.debugger(f"expected_seqnr: {self.expected_seqnr} \n")
+            self.expected_ack += 1
             self.expected_seqnr += 1
 
             # Send packet 
-            self.debugger("sending packet")
+            self.debugger("Sending ack")
             self.network_layer.send(packet)
-            # self.reset_timer()  # Reset the timer when an ACK is received.
-
             self.application_layer.receive_from_transport(packet.data)
+
+
         elif packet.seqnr < self.expected_ack:
             self.debugger(f"Acknowledging older packet, expected ack: {self.expected_ack} \n")
         else:
             # Sett starten på vinduet til der det elementet er i lista 
             self.debugger(f"Received future data packet: expected: {self.expected_ack}\n")
 
-
+    
     def handle_ack_packet(self, packet):
         """
         Handling received data packets.
@@ -136,11 +134,29 @@ class TransportLayer:
     
         # mindre eller expecte 
         if packet.seqnr >= self.expected_seqnr:
-            # Slide the window to the right if possible but not beyond PACKET_NUM.
-            while self.packets_window and self.packets_window[0].seqnr <= packet.seqnr: 
-                self.packets_window.pop(0)
+            if self.timer:
+                self.expected_seqnr += 1
+                self.debugger(f"Updated expected seqnr to {self.expected_seqnr}\n")
+            else: 
+                # Slide the window to the right if possible but not beyond PACKET_NUM.
+                while self.packets_window and self.packets_window[0].seqnr <= packet.seqnr: 
+                    self.packets_window.pop(0)
+                    self.expected_ack += 1
+                    self.debugger(f"Updated expected ack to {self.expected_ack}\n")
+        # Reset timer and slide the window 
+        if self.packets_window:
+            self.debugger("Resetting timer \n")
+            self.reset_timer(self.handle_timeout)
             
-            
+
+
+    def handle_timeout(self):
+        self.debugger("Timeout occurred. Retransmitting unacknowledged packets\n")
+        for packet in self.packets_window:
+            self.network_layer.send(packet)
+        if self.packets_window:
+            self.reset_timer(self.handle_timeout)
+        
 
     def reset_timer(self, callback, *args):
         # This is a safety-wrapper around the Timer-objects, which are
