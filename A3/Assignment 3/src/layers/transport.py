@@ -21,9 +21,7 @@ class TransportLayer:
         self.seqnr = 0                    # Sequence number, increm for all pacets 
         self.expected_seqnr = 0           # The expected data sequence number
         self.expected_ack = 0             # The last acknowledged sequence number
-        self.debug = True                 # Set to false if you do not want debug prints 
-        self.unacknowledged_packets = {}  # Store unacknowledged packets and their timer
-        
+        self.debug = True                 # Set to false if you do not want debug prints         
 
 
 
@@ -75,7 +73,7 @@ class TransportLayer:
             self.network_layer.send(packet)
 
             # if self.window_start == packet.seqnr:
-            #     self.reset_timer(self.handle_timeout)
+            self.reset_timer(self.handle_timeout)
         
 
     def from_network(self, packet):
@@ -93,7 +91,7 @@ class TransportLayer:
             self.handle_data_packet(packet)
         
 
-
+    # BOB 
     def handle_data_packet(self, packet):
         """
         Receiving data from the network layer.
@@ -104,25 +102,34 @@ class TransportLayer:
         self.debugger(f"Recived data packet with seqnr: {packet.seqnr}, expected:  {self.expected_seqnr} \n")
         
         
-        if packet.seqnr == self.expected_seqnr:
+        if packet.seqnr <= self.expected_seqnr:
             # Send ACK for the received packet using self.network_layer.send.
             packet.ack = True
-            self.expected_ack += 1
-            self.expected_seqnr += 1
 
             # Send packet 
             self.debugger("Sending ack")
             self.network_layer.send(packet)
+            self.expected_ack += 1
+            self.expected_seqnr += 1
             self.application_layer.receive_from_transport(packet.data)
 
 
         elif packet.seqnr < self.expected_ack:
             self.debugger(f"Acknowledging older packet, expected ack: {self.expected_ack} \n")
+            packet.ack = True
+            self.network_layer.send(packet)
+            self.application_layer.receive_from_transport(packet.data)
+
         else:
             # Sett starten på vinduet til der det elementet er i lista 
             self.debugger(f"Received future data packet: expected: {self.expected_ack}\n")
-
+            packet.ack = True
+            packet.seqnr = self.expected_ack
+            self.debugger("Sending duplicate ACK\n")
+            self.network_layer.send(packet)
     
+
+    # ALICE 
     def handle_ack_packet(self, packet):
         """
         Handling received data packets.
@@ -130,19 +137,23 @@ class TransportLayer:
         Args:
             ACK (ack): The received ack.
         """
-        self.debugger("Received data packet \n")
+        self.debugger(f"Received data packet.  ack={packet.ack} \n")
+
+        
     
         # mindre eller expecte 
         if packet.seqnr >= self.expected_seqnr:
+            self.expected_ack = packet.seqnr
+            self.window_start = self.expected_ack 
             if self.timer:
                 self.expected_seqnr += 1
                 self.debugger(f"Updated expected seqnr to {self.expected_seqnr}\n")
-            else: 
-                # Slide the window to the right if possible but not beyond PACKET_NUM.
-                while self.packets_window and self.packets_window[0].seqnr <= packet.seqnr: 
-                    self.packets_window.pop(0)
-                    self.expected_ack += 1
-                    self.debugger(f"Updated expected ack to {self.expected_ack}\n")
+            
+            # Slide the window to the right if possible but not beyond PACKET_NUM.
+            while self.packets_window and self.packets_window[0].seqnr <= packet.seqnr: 
+                self.packets_window.pop(0)
+                self.expected_ack += 1
+                self.debugger(f"Updated expected ack to {self.expected_ack}\n")
         # Reset timer and slide the window 
         if self.packets_window:
             self.debugger("Resetting timer \n")
