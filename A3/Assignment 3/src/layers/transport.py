@@ -1,3 +1,5 @@
+from collections import deque
+
 from copy import copy
 from threading import Timer
 
@@ -53,6 +55,7 @@ class TransportLayer:
         self.network_layer = layer
 
 
+    # Alice 
     def from_app(self, binary_data):
         """ 
         Sending data from the application layer to the network layer.
@@ -60,24 +63,24 @@ class TransportLayer:
         Args:
             binary_data (bytes): The data to send.
         """
-        if len(self.packets_window) < self.window_size and self.seqnr <= PACKET_NUM:
-            # Calculate the checksum for the data
-            checksum = self.calculate_checksum(binary_data)
-            self.debugger(f"checksum: {checksum}")
-
+        if len(self.packets_window) < self.window_size and binary_data is not None:
             # Create a packet with the binary data, sequence number, and checksum.
             packet = Packet(binary_data)
             packet.seqnr = self.seqnr
-            packet.checksum = checksum  # Include the calculated checksum
             self.seqnr += 1
 
+            # Calculate the checksum for the data
+            packet.checksum = self.calculate_checksum(binary_data)  # Include the calculated checksum
+
             # Append the packet to the window
+            self.debugger(f"append packet nr {self.seqnr} \n")
             self.packets_window.append(packet)
-            self.debugger(f"window: {self.packets_window}")
+            self.window_end = self.seqnr
+            self.debugger(f"window: {self.packets_window} \n")
 
             self.network_layer.send(packet)
             self.reset_timer(self.handle_timeout)
-        
+
 
     def from_network(self, packet):
         """ 
@@ -103,9 +106,10 @@ class TransportLayer:
             packet (Packet): The received packet.
         """
         self.debugger(f"Recived data packet with seqnr: {packet.seqnr}, expected:  {self.expected_seqnr} \n")
+    
         # Calculate the checksum of the received data
         received_checksum = packet.checksum
-        
+
         if packet.seqnr <= self.expected_seqnr:
             calculated_checksum = self.calculate_checksum(packet.data)
             self.debugger(f"checksums {received_checksum} == {calculated_checksum}")
@@ -116,20 +120,20 @@ class TransportLayer:
                 # Send packet 
                 self.debugger("Sending ack")
                 self.network_layer.send(packet)
-                self.expected_ack += 1
+                self.expected_ack = packet.seqnr + 1
 
-                if packet.seqnr == self.expected_seqnr:
-                    self.expected_seqnr += 1
+                # if packet.seqnr == self.expected_seqnr:
+                self.expected_seqnr += 1
                 self.application_layer.receive_from_transport(packet.data)
             else: 
                 # Checksums do not match; data is corrupt
-                self.debugger("Received corrupt data. Dropping the packet, not sending ACK.\n")
+                self.debugger("Received corrupt data ({received_checksum} != {calculated_checksum}). Dropping the packet, not sending ACK.\n")
 
-        elif packet.seqnr < self.expected_ack:
-            self.debugger(f"Acknowledging older packet, expected ack: {self.expected_ack} \n")
-            packet.ack = True
-            self.network_layer.send(packet)
-            self.application_layer.receive_from_transport(packet.data)
+        # elif packet.seqnr < self.expected_ack:
+        #     self.debugger(f"Acknowledging older packet, expected ack: {self.expected_ack} \n")
+        #     packet.ack = True
+        #     self.network_layer.send(packet)
+        #     self.application_layer.receive_from_transport(packet.data)
 
         elif packet.seqnr > self.expected_ack:
             # Sett starten på vinduet til der det elementet er i lista 
@@ -144,21 +148,24 @@ class TransportLayer:
         Args:
             ACK (ack): The received ack.
         """
-        self.debugger(f"Received data packet.  ack={packet.ack} \n")
+        self.debugger(f"Alice recived ACK.  ack seqnr:{packet.seqnr} = exp seqnr: {self.expected_ack} \n")
     
         # mindre eller expecte 
         if packet.seqnr >= self.expected_seqnr:
             self.expected_ack = packet.seqnr
-            self.window_start = self.expected_ack 
-            if self.timer:
-                self.expected_seqnr += 1
-                self.debugger(f"Updated expected seqnr to {self.expected_seqnr}\n")
             
+            # kan man si no her om at vi vil ha et elem til i lista?
+            # if self.timer:
+                # self.expected_seqnr += 1
+                # self.debugger(f"Updated expected seqnr to {self.expected_seqnr}\n")
+            # 
             # Slide the window to the right if possible but not beyond PACKET_NUM.
             while self.packets_window and self.packets_window[0].seqnr <= packet.seqnr: 
+                self.debugger(f"Pop packet nr {packet.seqnr}")
                 self.packets_window.pop(0)
+                self.window_start = self.expected_ack +1 
                 self.expected_ack += 1
-            self.debugger(f"Updated expected ack to {self.expected_ack}\n")
+
         # Reset timer and slide the window 
         if self.packets_window:
             self.reset_timer(self.handle_timeout)

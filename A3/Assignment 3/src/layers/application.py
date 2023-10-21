@@ -21,3 +21,6 @@ class ApplicationLayer:
 
     def receive_from_transport(self, binary_data):
         self.payload.put_chunk(binary_data)
+
+    def get_data(self):
+        return self.payload.get_chunk()
