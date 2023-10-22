@@ -16,9 +16,10 @@ class TransportLayer:
     """
 
     def __init__(self):
+        # Initialize instance variables
         self.timer          = None
         self.timeout        = 0.4           # Seconds
-        self.window_size    = WINDOW_SIZE   # Number of packets that can be in flight simultaneously
+        self.window_size = WINDOW_SIZE      # Window size, value sat in config 
         self.packets_window = []            # Buffer for sending packets
         self.window_start   = 0             # Start positions within the list of packets
         self.window_end     = 0             # End positions within the list of packets
@@ -29,7 +30,15 @@ class TransportLayer:
 
 
     def calculate_checksum(self, data):
-        # Calculate a simple XOR-based checksum for the data
+        """
+        Calculate a simple XOR-based checksum for the data.
+
+        Args:
+            data (bytes): The data for which the checksum is calculated.
+
+        Returns:
+            int: The calculated checksum.
+        """
         checksum = 0
         for byte in data:
             checksum ^= byte
@@ -67,39 +76,40 @@ class TransportLayer:
         """
 
         if binary_data is None: 
-            self.debugger(f"Binary data is None, something is wrong")
+            self.debugger(f"Binary data is {binary_data}, something is wrong")
             return
 
+        if not self.packets_window or self.packets_window[-1].seqnr != self.seqnr:
+            # Wait until there is space in the window
+            while len(self.packets_window) >= self.window_size:
+                self.debugger("Window is full, waiting for space")
+                time.sleep(1)
 
-        # list is full, wait untill there is space 
-        while len(self.packets_window) >= self.window_size:
-            self.debugger(f"Window is full, waiting for space")
-            time.sleep(1)
 
+            # Create a packet with the binary data, sequence number, and checksum.
+            packet = Packet(binary_data)
+            packet.seqnr = self.seqnr
+            self.seqnr += 1
 
-        # Create a packet with the binary data, sequence number, and checksum.
-        packet = Packet(binary_data)
-        packet.seqnr = self.seqnr
-        self.seqnr += 1
+            # Calculate the data's checksum. This is done to determine whether or not the data is corrupted. 
+            packet.checksum = self.calculate_checksum(binary_data)  
 
-        # Calculate the checksum for the data
-        packet.checksum = self.calculate_checksum(binary_data)  # Include the calculated checksum
+            # Append the packet to the window
+            self.debugger(f"append packet nr {self.seqnr} \n")
+            self.packets_window.append(packet)
+            self.window_end = self.seqnr
+            self.debugger(f"window: {self.packets_window} \n")
 
-        # Append the packet to the window
-        self.debugger(f"append packet nr {self.seqnr} \n")
-        self.packets_window.append(packet)
-        self.window_end = self.seqnr
-        print("")
-        self.debugger(f"window: {self.packets_window} \n")
-        print("")
-
-        self.network_layer.send(packet)
-        self.reset_timer(self.handle_timeout)
+            self.network_layer.send(packet)
+            self.reset_timer(self.handle_timeout)
 
 
     def from_network(self, packet):
         """ 
         Receiving data from the network layer.
+
+        Args:
+            packet (Packet): The received packet.
         """
         
         self.debugger(self.packets_window)
@@ -124,19 +134,18 @@ class TransportLayer:
         # Calculate the checksum of the received data
         received_checksum = packet.checksum
 
-        if packet.seqnr <= self.expected_seqnr:     # med expected ack får jeg Finished, men den stopper ikke 
+        if packet.seqnr <= self.expected_seqnr:     
             self.debugger(f"Recived data packet with seqnr: {packet.seqnr}, expected:  {self.expected_seqnr} \n")
 
             calculated_checksum = self.calculate_checksum(packet.data)
             if received_checksum == calculated_checksum:
                 self.debugger(f"checksums {received_checksum} == {calculated_checksum}")
+
                 # Send ACK for the received packet using self.network_layer.send.
                 packet.ack = True
-
-                # Send packet 
                 self.debugger("Sending ack")
                 self.network_layer.send(packet)
-                self.expected_ack = packet.seqnr + 1            # skal det være +1?
+                self.expected_ack = packet.seqnr + 1           
 
                 if packet.seqnr == self.expected_seqnr:
                     self.expected_seqnr += 1
@@ -159,20 +168,22 @@ class TransportLayer:
         Args:
             ACK (ack): The received ack.
         """
-        self.debugger(f"Alice recived ACK.  ack seqnr:{packet.seqnr} = exp seqnr: {self.expected_ack} \n")
     
         # mindre eller expecte 
-        if packet.seqnr >= self.expected_seqnr:     # skal det være expected ack 
+        if packet.seqnr >= self.expected_seqnr:    
+            self.debugger(f"Alice recived ACK.  ack seqnr:{packet.seqnr} = exp seqnr: {self.expected_ack} \n")
             self.expected_ack = packet.seqnr
             
-            # Slide the window to the right if possible but not beyond PACKET_NUM.
+            # Slide the window to the right
             while self.packets_window and self.packets_window[0].seqnr <= packet.seqnr: 
-                self.debugger(f"Pop packet nr {packet.seqnr}")
                 self.packets_window.pop(0)
+                self.debugger(f"Pop packet nr {packet.seqnr}")
                 self.window_start = self.expected_ack +1 
                 self.expected_ack += 1
+        else:
+            self.debugger(f"Ignoring out-of-order ACK packet with seqnr: {packet.seqnr}, expected: {self.expected_seqnr}")
 
-        # Reset timer and slide the window 
+        # Reset timer 
         if self.packets_window:
             self.reset_timer(self.handle_timeout)
             self.debugger("Resetting timer \n")
@@ -180,11 +191,13 @@ class TransportLayer:
 
 
     def handle_timeout(self):
+        """
+        Handle the timeout event by retransmitting unacknowledged packets.
+        """
         self.debugger("Timeout occurred. Retransmitting unacknowledged packets\n")
         for packet in self.packets_window:
             self.network_layer.send(packet)
             
-        # Only reset the timer if there are unacknowledged packets in the window
         self.reset_timer(self.handle_timeout)
         
 
@@ -198,6 +211,8 @@ class TransportLayer:
                 self.timer.cancel()
         # callback(a function) is called with *args as arguments
         # after self.timeout seconds.
+
+        # Only reset the timer if there are unacknowledged packets in the window
         if self.packets_window:
             self.timer = Timer(self.timeout, callback, *args)
             self.timer.start()
