@@ -53,7 +53,6 @@ class TransportLayer:
         """
         if self.debug == True:
             self.logger.debug(message)
-            
 
     def with_logger(self, logger):
         self.logger = logger
@@ -84,7 +83,6 @@ class TransportLayer:
             while len(self.packets_window) >= self.window_size:
                 self.debugger("Window is full, waiting for space")
                 time.sleep(1)
-
 
             # Create a packet with the binary data, sequence number, and checksum.
             packet = Packet(binary_data)
@@ -120,7 +118,7 @@ class TransportLayer:
         else:
             # Handling data packets.
             self.handle_data_packet(packet)
-        
+
 
     # BOB 
     def handle_data_packet(self, packet):
@@ -137,7 +135,10 @@ class TransportLayer:
         if packet.seqnr <= self.expected_seqnr:     
             self.debugger(f"Recived data packet with seqnr: {packet.seqnr}, expected:  {self.expected_seqnr} \n")
 
+            # Calculate the checksum of the received data
             calculated_checksum = self.calculate_checksum(packet.data)
+
+            # Check if the received checksum is equal to the calculated checksum
             if received_checksum == calculated_checksum:
                 self.debugger(f"checksums {received_checksum} == {calculated_checksum}")
 
@@ -154,11 +155,10 @@ class TransportLayer:
                 # Checksums do not match; data is corrupt
                 self.debugger("Received corrupt data ({received_checksum} != {calculated_checksum}). Dropping the packet, not sending ACK.\n")
 
-
         elif packet.seqnr > self.expected_ack:
             # Sett starten på vinduet til der det elementet er i lista 
             self.debugger(f"Received future data packet: expected: {self.expected_ack}\n")
-    
+
 
     # ALICE 
     def handle_ack_packet(self, packet):
@@ -187,7 +187,6 @@ class TransportLayer:
         if self.packets_window:
             self.reset_timer(self.handle_timeout)
             self.debugger("Resetting timer \n")
-            
 
 
     def handle_timeout(self):
@@ -195,9 +194,12 @@ class TransportLayer:
         Handle the timeout event by retransmitting unacknowledged packets.
         """
         self.debugger("Timeout occurred. Retransmitting unacknowledged packets\n")
+
+        # Retransmit all unacknowledged packets
         for packet in self.packets_window:
             self.network_layer.send(packet)
-            
+        
+        # Reset timer
         self.reset_timer(self.handle_timeout)
         
 
