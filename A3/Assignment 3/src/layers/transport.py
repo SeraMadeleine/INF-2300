@@ -5,6 +5,8 @@ from threading import Timer
 
 from packet import Packet
 from config import *
+import time
+
 
 
 class TransportLayer:
@@ -23,7 +25,7 @@ class TransportLayer:
         self.seqnr          = 0             # Sequence number, increm for all pacets 
         self.expected_seqnr = 0             # The expected data sequence number
         self.expected_ack   = 0             # The last acknowledged sequence number
-        self.debug          = True          # Set to false if you do not want debug prints       
+        self.debug          = False          # Set to false if you do not want debug prints       
 
 
     def calculate_checksum(self, data):
@@ -63,23 +65,32 @@ class TransportLayer:
         Args:
             binary_data (bytes): The data to send.
         """
-        if len(self.packets_window) < self.window_size and binary_data is not None:
-            # Create a packet with the binary data, sequence number, and checksum.
-            packet = Packet(binary_data)
-            packet.seqnr = self.seqnr
-            self.seqnr += 1
 
-            # Calculate the checksum for the data
-            packet.checksum = self.calculate_checksum(binary_data)  # Include the calculated checksum
+        if binary_data is None: 
+            self.debugger(f"Binary data is None, something is wrong")
+            return
 
-            # Append the packet to the window
-            self.debugger(f"append packet nr {self.seqnr} \n")
-            self.packets_window.append(packet)
-            self.window_end = self.seqnr
-            self.debugger(f"window: {self.packets_window} \n")
 
-            self.network_layer.send(packet)
-            self.reset_timer(self.handle_timeout)
+        # list is full, wait 
+        while len(self.packets_window) >= self.window_size:
+            time.sleep(1)
+
+        # Create a packet with the binary data, sequence number, and checksum.
+        packet = Packet(binary_data)
+        packet.seqnr = self.seqnr
+        self.seqnr += 1
+
+        # Calculate the checksum for the data
+        packet.checksum = self.calculate_checksum(binary_data)  # Include the calculated checksum
+
+        # Append the packet to the window
+        self.debugger(f"append packet nr {self.seqnr} \n")
+        self.packets_window.append(packet)
+        self.window_end = self.seqnr
+        self.debugger(f"window: {self.packets_window} \n")
+
+        self.network_layer.send(packet)
+        self.reset_timer(self.handle_timeout)
 
 
     def from_network(self, packet):
