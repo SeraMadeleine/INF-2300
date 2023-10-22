@@ -71,9 +71,10 @@ class TransportLayer:
             return
 
 
-        # list is full, wait 
+        # list is full, wait untill there is space 
         while len(self.packets_window) >= self.window_size:
             time.sleep(1)
+            # pass
 
         # Create a packet with the binary data, sequence number, and checksum.
         packet = Packet(binary_data)
@@ -165,11 +166,6 @@ class TransportLayer:
         if packet.seqnr >= self.expected_seqnr:
             self.expected_ack = packet.seqnr
             
-            # kan man si no her om at vi vil ha et elem til i lista?
-            # if self.timer:
-                # self.expected_seqnr += 1
-                # self.debugger(f"Updated expected seqnr to {self.expected_seqnr}\n")
-            # 
             # Slide the window to the right if possible but not beyond PACKET_NUM.
             while self.packets_window and self.packets_window[0].seqnr <= packet.seqnr: 
                 self.debugger(f"Pop packet nr {packet.seqnr}")
