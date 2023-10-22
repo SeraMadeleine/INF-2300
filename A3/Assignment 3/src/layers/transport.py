@@ -185,7 +185,6 @@ class TransportLayer:
             self.network_layer.send(packet)
             
         # Only reset the timer if there are unacknowledged packets in the window
-        # if self.packets_window:
         self.reset_timer(self.handle_timeout)
         
 
