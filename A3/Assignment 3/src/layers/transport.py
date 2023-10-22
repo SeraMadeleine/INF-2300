@@ -17,7 +17,7 @@ class TransportLayer:
 
     def __init__(self):
         self.timer          = None
-        self.timeout        = 0.4           # Seconds
+        self.timeout        = 0.6           # Seconds
         self.window_size    = WINDOW_SIZE   # Number of packets that can be in flight simultaneously
         self.packets_window = []            # Buffer for sending packets
         self.window_start   = 0             # Start positions within the list of packets
@@ -25,7 +25,7 @@ class TransportLayer:
         self.seqnr          = 0             # Sequence number, increm for all pacets 
         self.expected_seqnr = 0             # The expected data sequence number
         self.expected_ack   = 0             # The last acknowledged sequence number
-        self.debug          = False          # Set to false if you do not want debug prints       
+        self.debug          = True          # Set to false if you do not want debug prints       
 
 
     def calculate_checksum(self, data):
@@ -124,8 +124,8 @@ class TransportLayer:
 
         if packet.seqnr <= self.expected_seqnr:
             calculated_checksum = self.calculate_checksum(packet.data)
-            self.debugger(f"checksums {received_checksum} == {calculated_checksum}")
             if received_checksum == calculated_checksum:
+                self.debugger(f"checksums {received_checksum} == {calculated_checksum}")
                 # Send ACK for the received packet using self.network_layer.send.
                 packet.ack = True
 
@@ -141,11 +141,6 @@ class TransportLayer:
                 # Checksums do not match; data is corrupt
                 self.debugger("Received corrupt data ({received_checksum} != {calculated_checksum}). Dropping the packet, not sending ACK.\n")
 
-        # elif packet.seqnr < self.expected_ack:
-        #     self.debugger(f"Acknowledging older packet, expected ack: {self.expected_ack} \n")
-        #     packet.ack = True
-        #     self.network_layer.send(packet)
-        #     self.application_layer.receive_from_transport(packet.data)
 
         elif packet.seqnr > self.expected_ack:
             # Sett starten på vinduet til der det elementet er i lista 
